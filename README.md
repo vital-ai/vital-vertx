@@ -1,2 +1,2 @@
 # vital-vertx
-vital vertx mofules
+vital vertx modules
