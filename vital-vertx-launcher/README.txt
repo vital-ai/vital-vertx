@@ -1,0 +1,1 @@
+a simple module that is responsible for loading other modules as defined in config

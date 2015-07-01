@@ -1,0 +1,123 @@
+#!/usr/bin/env groovy
+
+import static groovy.io.FileType.FILES
+
+def homeDir = new File(getClass().protectionDomain.codeSource.location.path).parentFile.parentFile.getAbsolutePath() + '/';
+
+String VITAL_HOME = System.getenv('VITAL_HOME')
+
+if(!VITAL_HOME) { 
+	System.err.println("VITAL_HOME environment variable not set.")
+	System.exit(-1);
+}
+
+
+List modules = [  
+  VITAL_HOME + '/vital-customer-admin',
+  VITAL_HOME + '/vital-customer-app',
+  VITAL_HOME + '/vital-license-server',
+  VITAL_HOME + '/vital-vertx/vital-mailgun',
+  VITAL_HOME + '/vital-vertx/vitalservicesuperadmin-mod',
+  VITAL_HOME + '/vital-vertx/vitalsuperadmin-auth-mod',
+  VITAL_HOME + '/vital-vertx/vital-vertx-launcher'
+]
+
+List jars = [
+//	homeDir + 'dist/vital-customer-app-1.0.jar',
+	homeDir + 'mods/io.vertx~lang-groovy~2.0.0-final'
+];
+
+//vitalsigns
+new File(VITAL_HOME + '/vitalsigns').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+
+//vitalservice
+new File(VITAL_HOME + '/vitalservice').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+//vitalservicesuperadmin
+new File(VITAL_HOME + '/vitalservicesuperadmin').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+//vitaldomain
+new File(VITAL_HOME + '/vital-domain/').eachFile(FILES) {
+	if(it.name.startsWith('VitalDomain-groovy-')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+//vitallucene
+new File(VITAL_HOME + '/vital-lucene/').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+//vital-dynamodb
+new File(VITAL_HOME + '/vital-dynamodb/').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+//custom domain
+new File(VITAL_HOME + '/domain-jar/').eachFile(FILES) {
+	if(it.name.startsWith('VitalCustomer-groovy-') && it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+for(String mod : modules) {
+
+//lib dir
+new File(mod, 'lib/').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+//mods dependecies
+new File(mod, 'mods/').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+new File(mod, 'dist/').eachFileRecurse(FILES) {
+        if(it.name.endsWith('.jar')) {
+                jars.add(it.absolutePath);
+        }
+}
+
+}
+
+//cleanup jars
+Set<String> uniqueJars = new HashSet<String>();
+for( Iterator<String> iter = jars.iterator(); iter.hasNext(); ) {
+    String j = iter.next();
+    if(!uniqueJars.add(new File(j).name)) {
+      iter.remove();
+    }
+}
+
+def mainClass = 'ai.vital.vertx.launcher.VitalVertxLauncherMain'
+
+List cmd = ['java', '-cp', (String)jars.join(File.pathSeparator), mainClass]
+for(String a : args) {
+	cmd.add(a)
+}
+//println cmd
+//return
+def process=new ProcessBuilder(cmd).redirectErrorStream(true).start()
+process.inputStream.eachLine {println it}
+

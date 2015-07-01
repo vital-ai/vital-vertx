@@ -1,0 +1,9 @@
+{
+  "main": "groovy:ai.vital.test.mod2.TestMod2",
+  "worker": true,
+  "description": "Vital Test Mod 2",
+  "licenses": ["The Apache Software License Version 2.0"],
+  "author": "Dariusz Kobylarz",
+  "keywords": ["VitalTestMod2", "Vital AI"],
+  "homepage": "http://vital.ai"
+}

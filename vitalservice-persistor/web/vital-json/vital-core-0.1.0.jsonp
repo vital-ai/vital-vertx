@@ -1,0 +1,704 @@
+var vital_core_0_1_0_schema =
+[ {
+  "id" : "http://vital.ai/ontology/vital-core#AggregationResult",
+  "parent" : "http://vital.ai/ontology/vital-core#VITAL_Node",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#AggregationResult",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#AggregationResult",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#AggregationResult" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "aggregationType" : {
+      "type" : "string"
+    },
+    "degree" : {
+      "type" : "number"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "value" : {
+      "type" : "number"
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#GraphMatch",
+  "parent" : "http://vital.ai/ontology/vital-core#VITAL_Node",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#GraphMatch",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#GraphMatch",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#GraphMatch" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "degree" : {
+      "type" : "number"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "graphURIs" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "graphURIsList" : {
+      "type" : "string"
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#GraphObject",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#GraphObject",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#GraphObject",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#GraphObject" ]
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#RDFStatement",
+  "parent" : "http://vital.ai/ontology/vital-core#VITAL_Node",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#RDFStatement",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#RDFStatement",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#RDFStatement" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "degree" : {
+      "type" : "number"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "rdfContext" : {
+      "type" : "string"
+    },
+    "rdfObject" : {
+      "type" : "string"
+    },
+    "rdfPredicate" : {
+      "type" : "string"
+    },
+    "rdfSubject" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#SparqlAskResponse",
+  "parent" : "http://vital.ai/ontology/vital-core#VITAL_Node",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#SparqlAskResponse",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#SparqlAskResponse",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#SparqlAskResponse" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "degree" : {
+      "type" : "number"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "positiveResponse" : {
+      "type" : "boolean"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#SparqlBinding",
+  "parent" : "http://vital.ai/ontology/vital-core#VITAL_GraphContainerObject",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#SparqlBinding",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#SparqlBinding",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#SparqlBinding" ]
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#VITAL_Edge",
+  "parent" : "http://www.w3.org/2002/07/owl#Thing",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#VITAL_Edge",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#VITAL_Edge",
+  "type" : "object",
+  "sourceDomains" : [ ],
+  "destinationDomains" : [ ],
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#VITAL_Edge" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "edgeDestination" : {
+      "type" : "string"
+    },
+    "edgeSource" : {
+      "type" : "string"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "listIndex" : {
+      "type" : "number"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#VITAL_Event",
+  "parent" : "http://vital.ai/ontology/vital-core#VITAL_Node",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#VITAL_Event",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#VITAL_Event",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#VITAL_Event" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "degree" : {
+      "type" : "number"
+    },
+    "eventPolarity" : {
+      "type" : "string"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#VITAL_GraphContainerObject",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#VITAL_GraphContainerObject",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#VITAL_GraphContainerObject",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#VITAL_GraphContainerObject" ]
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#VITAL_HyperEdge",
+  "parent" : "http://www.w3.org/2002/07/owl#Thing",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#VITAL_HyperEdge",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#VITAL_HyperEdge",
+  "type" : "object",
+  "sourceDomains" : [ ],
+  "destinationDomains" : [ ],
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#VITAL_HyperEdge" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "hyperEdgeDestination" : {
+      "type" : "string"
+    },
+    "hyperEdgeSource" : {
+      "type" : "string"
+    },
+    "listIndex" : {
+      "type" : "number"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#VITAL_HyperNode",
+  "parent" : "http://vital.ai/ontology/vital-core#GraphObject",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#VITAL_HyperNode",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#VITAL_HyperNode",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#VITAL_HyperNode" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#VITAL_Node",
+  "parent" : "http://vital.ai/ontology/vital-core#GraphObject",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#VITAL_Node",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#VITAL_Node",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#VITAL_Node" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "degree" : {
+      "type" : "number"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#VITAL_PayloadNode",
+  "parent" : "http://vital.ai/ontology/vital-core#VITAL_Node",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#VITAL_PayloadNode",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#VITAL_PayloadNode",
+  "type" : "object",
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#VITAL_PayloadNode" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "degree" : {
+      "type" : "number"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "serializedJSON" : {
+      "type" : "string"
+    },
+    "serializedRDF" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#VITAL_PeerEdge",
+  "parent" : "http://vital.ai/ontology/vital-core#VITAL_Edge",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#VITAL_PeerEdge",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#VITAL_PeerEdge",
+  "type" : "object",
+  "sourceDomains" : [ ],
+  "destinationDomains" : [ ],
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#VITAL_PeerEdge" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "edgeDestination" : {
+      "type" : "string"
+    },
+    "edgeSource" : {
+      "type" : "string"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "listIndex" : {
+      "type" : "number"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+}, {
+  "id" : "http://vital.ai/ontology/vital-core#VITAL_TaxonomyEdge",
+  "parent" : "http://vital.ai/ontology/vital-core#VITAL_Edge",
+  "$schema" : "http://json-schema.org/draft-04/schema#",
+  "title" : "http://vital.ai/ontology/vital-core#VITAL_TaxonomyEdge",
+  "description" : "Auto-generated schema for owl class: http://vital.ai/ontology/vital-core#VITAL_TaxonomyEdge",
+  "type" : "object",
+  "sourceDomains" : [ ],
+  "destinationDomains" : [ ],
+  "properties" : {
+    "URI" : {
+      "type" : "string"
+    },
+    "type" : {
+      "enum" : [ "http://vital.ai/ontology/vital-core#VITAL_TaxonomyEdge" ]
+    },
+    "active" : {
+      "type" : "boolean"
+    },
+    "edgeDestination" : {
+      "type" : "string"
+    },
+    "edgeSource" : {
+      "type" : "string"
+    },
+    "externalTypes" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "listIndex" : {
+      "type" : "number"
+    },
+    "ontologyIRI" : {
+      "type" : "string"
+    },
+    "timestamp" : {
+      "type" : "number"
+    },
+    "types" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "versionIRI" : {
+      "type" : "string"
+    },
+    "vitaltype" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "URI", "type" ],
+  "additionalProperties" : false
+} ];

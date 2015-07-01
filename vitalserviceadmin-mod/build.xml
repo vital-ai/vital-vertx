@@ -1,0 +1,63 @@
+<project name="VitalServiceAdminVertXMod" default="main">
+
+	<property environment="env" />
+	<fail unless="env.VITAL_HOME" message="VITAL_HOME env variable not set!" />
+	<property name="VITAL_HOME" value="${env.VITAL_HOME}" />
+	<echo message="VITAL_HOME: ${VITAL_HOME}" />
+	
+	<property name="build.dir" value="${basedir}/build" />
+	
+	<property name="dist.dir" value="${basedir}/dist" />
+	
+	<property name="dist.jar" value="${dist.dir}/vitalserviceadmin-1.0.jar" />
+	
+	<property name="mod.name" value="ai.vital~service.admin~1.0" />
+	
+	<property name="dist.zip" value="${dist.dir}/${mod.name}.zip" />
+	
+	<property name="vitalservice.src" value="${basedir}/../vitalservice-persistor/src" />
+	
+	<path id="classpath">
+		<fileset dir="${VITAL_HOME}">
+			<include name="vital-domain/VitalDomain-groovy*.jar" />
+			<include name="vitalsigns/command/VitalSigns-*.jar" />
+			<include name="vitalsigns/lib/**/*.jar" />
+			<include name="vitalservice/**/*.jar" />
+		</fileset>
+		<fileset dir="${basedir}/lib">
+			<include name="**/*.jar" />
+		</fileset>
+		<path location="${basedir}/mods/io.vertx~lang-groovy~2.0.0-final" />
+	</path>
+	
+	<taskdef name="groovyc"
+	         classname="org.codehaus.groovy.ant.Groovyc"
+	         classpathref="classpath" />
+
+	<target name="main">
+	
+		<delete dir="${build.dir}" />
+		
+		<mkdir dir="${build.dir}" />
+		
+		<mkdir dir="${dist.dir}" />
+		
+		<groovyc srcdir="${basedir}/src;${vitalservice.src}" destdir="${build.dir}" indy="false">
+			<classpath>
+			    <path refid="classpath" />
+			  </classpath>
+			<!-- <javac source="1.4" target="1.4" debug="on" /> -->
+		</groovyc>
+		
+		<jar destfile="${dist.jar}" basedir="${build.dir}"></jar>
+		
+		<zip destfile="${dist.zip}">
+			<zipfileset file="${dist.jar}" prefix="${mod.name}/lib"></zipfileset>
+			<zipfileset file="${basedir}/mods/ai.vital~service.admin~1.0/mod.json" prefix="${mod.name}"></zipfileset>
+		</zip>
+		
+		<delete dir="${build.dir}" />
+			
+	</target>
+	
+</project>
