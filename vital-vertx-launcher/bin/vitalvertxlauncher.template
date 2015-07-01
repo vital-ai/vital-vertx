@@ -1,0 +1,102 @@
+#!/usr/bin/env groovy
+
+import static groovy.io.FileType.FILES
+
+def homeDir = new File(getClass().protectionDomain.codeSource.location.path).parentFile.parentFile.getAbsolutePath() + '/';
+
+String VITAL_HOME = System.getenv('VITAL_HOME')
+
+if(!VITAL_HOME) { 
+	System.err.println("VITAL_HOME environment variable not set.")
+	System.exit(-1);
+}
+
+
+//add custom modules to the end of that list
+List modules = [  
+  homeDir
+]
+
+List jars = [];
+
+//vitalsigns
+new File(VITAL_HOME + '/vitalsigns').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+
+//vitaldomain
+new File(VITAL_HOME + '/vital-domain/').eachFile(FILES) {
+	if(it.name.startsWith('VitalDomain-groovy-')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+//vitalservice
+new File(VITAL_HOME + '/vitalservice').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+
+
+//vitallucene
+new File(VITAL_HOME + '/vital-lucene/').eachFileRecurse(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+//custom domain
+new File(VITAL_HOME + '/domain-groovy-jar/').eachFile(FILES) {
+	if(it.name.endsWith('.jar')) {
+		jars.add(it.absolutePath);
+	}
+}
+
+
+//modules target
+for(String moduleDir : modules) {
+	
+	File targetDir = new File(moduleDir, 'target')
+	
+	File targetJar = null
+	
+	targetDir.eachFile(FILES) {
+		//prefer with-dependencies
+		if(it.name.endsWith('-with-dependencies.jar')) {
+			targetJar = it
+		} else if(targetJar == null && it.name.endsWith(".jar")) {
+			targetJar = it
+		}
+		
+	}
+	
+	if(targetJar != null) jars.add(targetJar.absolutePath)
+	
+}
+
+
+//cleanup jars
+Set<String> uniqueJars = new HashSet<String>();
+for( Iterator<String> iter = jars.iterator(); iter.hasNext(); ) {
+    String j = iter.next();
+    if(!uniqueJars.add(new File(j).name)) {
+      iter.remove();
+    }
+}
+
+def mainClass = 'ai.vital.vertx.launcher.VitalVertxLauncherMain'
+
+List cmd = ['java', '-cp', (String)jars.join(File.pathSeparator), mainClass]
+for(String a : args) {
+	cmd.add(a)
+}
+//println cmd
+//return
+def process=new ProcessBuilder(cmd).redirectErrorStream(true).start()
+process.inputStream.eachLine {println it}
+
