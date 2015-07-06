@@ -36,7 +36,7 @@ abstract class AbstractVitalServiceAdminVertxTest extends TestCase {
 	 */
 	void deployModules(LocalTestPlatform ltp) {
 		
-		ltp.pm.deployModule("vital-ai~vitalserviceadmin-vertx-mod~0.2.252", new JsonObject(), 1, new AsyncResultHandler<String>() {
+		ltp.pm.deployModule("vital-ai~vitalserviceadmin-vertx-mod~0.2.253", new JsonObject(), 1, new AsyncResultHandler<String>() {
 			public void handle(AsyncResult<String> asyncResult) {
 				if (asyncResult.succeeded()) {
 					println("Vital Service Admin deployment ID is " + asyncResult.result());
