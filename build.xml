@@ -1,0 +1,114 @@
+<project name="vital-vertx-distribution" default="dist">
+	
+	<property environment="env" />
+	<fail unless="env.VITAL_HOME" message="VITAL_HOME env variable not set!" />
+	<property name="VITAL_HOME" value="${env.VITAL_HOME}" />
+	<echo message="VITAL_HOME: ${VITAL_HOME}" />
+	
+	<fail unless="dist.version" message="dist.version property not set!" />
+	
+	<property name="dist.dir" value="${basedir}/dist" />
+	
+	<property name="prefix" value="vital-vertx" />
+	
+	<property name="product.zip" value="vital-vertx-${dist.version}.zip" />
+	
+	<property name="product.tar.gz" value="vital-vertx-${dist.version}.tar.gz" />
+	
+	<property name="build.javadoc" value="${basedir}/build_javadoc" />
+	
+	<property name="build.javadocs.zips" value="${basedir}/build_javadoc_zips" />
+	
+	<property name="dist.javadoc.admin" value="${build.javadocs.zips}/vitalserviceadmin-vertx-mod-${dist.version}-javadocs.zip" />
+	
+	<property name="dist.javadoc.service" value="${build.javadocs.zips}/vitalservice-vertx-mod-${dist.version}-javadocs.zip" />
+	
+	<property name="dist.javadoc.launcher" value="${build.javadocs.zips}/vital-vertx-launcher-${dist.version}-javadocs.zip" />
+	
+	<property name="dist.javadoc" value="${basedir}/vital-vertx-${dist.version}-javadocs.zip" />
+	
+	<path id="classpath">
+		<fileset dir="${VITAL_HOME}/vitalsigns/lib">
+			<include name="**/*.jar" />
+		</fileset>
+	</path>
+	
+	<taskdef name="groovydoc" classname="org.codehaus.groovy.ant.Groovydoc" classpathref="classpath" onerror="report" />
+	
+	<target name="javadoc">
+		
+		
+		<delete file="${dist.javadoc}" />
+		<delete dir="${build.javadoc}"/>
+		<delete dir="${build.javadocs.zips}" />
+		
+		<mkdir dir="${build.javadocs.zips}" />
+		
+		
+		<!-- admin -->
+		<groovydoc author="true" destdir="${build.javadoc}" windowtitle="vitalserviceadmin-vertx-mod ${dist.version}" sourcepath="${basedir}/vitalserviceadmin-vertx-mod/src/main/groovy" charset="UTF-8">
+		</groovydoc>
+		<jar destfile="${dist.javadoc.admin}" basedir="${build.javadoc}"></jar>
+		<delete dir="${build.javadoc}"/>
+		
+		
+		<!-- service -->
+		<groovydoc author="true" destdir="${build.javadoc}" windowtitle="vitalservice-vertx-mod ${dist.version}" sourcepath="${basedir}/vitalservice-vertx-mod/src/main/groovy" charset="UTF-8">
+		</groovydoc>
+		<jar destfile="${dist.javadoc.service}" basedir="${build.javadoc}"></jar>
+		<delete dir="${build.javadoc}"/>
+		
+		
+		<!-- launcher -->
+				<groovydoc author="true" destdir="${build.javadoc}" windowtitle="vital-vertx-launcher ${dist.version}" sourcepath="${basedir}/vital-vertx-launcher/src/main/groovy" charset="UTF-8">
+		</groovydoc>
+		<jar destfile="${dist.javadoc.launcher}" basedir="${build.javadoc}"></jar>
+		
+		<delete dir="${build.javadoc}"/>
+		
+		
+		<zip destfile="${dist.javadoc}" basedir="${build.javadocs.zips}"></zip>
+		
+	</target>
+	
+	<!-- generate distribution -->
+	<target name="dist" depends="javadoc">
+		
+		<copy file="${basedir}/README.md" tofile="${basedir}/vital-vertx-${dist.version}-readme.txt" />
+		
+		<delete file="${product.zip}" />
+		<delete file="${product.tar.gz}" />
+		
+		<delete dir="${dist.dir}" />
+		<mkdir dir="${dist.dir}"/>
+		
+		
+		<zip destfile="${product.zip}" compress="yes">
+			<zipfileset dir="${basedir}" defaultexcludes="true" prefix="${prefix}">
+				<include name="*/bin/**"/>
+				<include name="*/mods/vital-ai*/**" />
+				<include name="*/src/**" />
+				<include name="*/.classpath" />
+				<include name="*/.gitignore" />
+				<include name="*/.project" />
+				<include name="*/pom.xml" />
+				<include name="*/README.md" />
+			</zipfileset>
+		</zip>
+		
+		<tar destfile="${product.tar.gz}" compression="gzip">
+			<tarfileset dir="${basedir}" defaultexcludes="true" prefix="${prefix}">
+				<include name="*/bin/**"/>
+				<include name="*/mods/vital-ai*/**" />
+				<include name="*/src/**" />
+				<include name="*/.classpath" />
+				<include name="*/.gitignore" />
+				<include name="*/.project" />
+				<include name="*/pom.xml" />
+				<include name="*/README.md" />
+			</tarfileset>
+		</tar>
+
+	</target>
+	
+</project>
