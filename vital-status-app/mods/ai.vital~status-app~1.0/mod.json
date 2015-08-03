@@ -1,9 +1,0 @@
-{
-  "main": "groovy:ai.vital.status.app.VitalStatusAppMod",
-  "worker": false,
-  "description": "Vital Status App module",
-  "licenses": ["The Apache Software License Version 2.0"],
-  "author": "Dariusz Kobylarz",
-  "keywords": ["Vital", "Status", "Monitoring", "Vital AI"],
-  "homepage": "http://vital.ai"
-}
