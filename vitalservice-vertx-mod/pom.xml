@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>vital-ai</groupId>
 	<artifactId>vitalservice-vertx-mod</artifactId>
-	<version>0.2.253</version>
+	<version>0.2.254</version>
 
 	<repositories>
 
@@ -127,13 +127,13 @@
 		<dependency>
 			<groupId>vital-ai</groupId>
 			<artifactId>vitalservice</artifactId>
-			<version>0.2.253</version>
+			<version>0.2.254</version>
 		</dependency>
 
 		<dependency>
 			<groupId>vital-ai</groupId>
 			<artifactId>vital-lucene</artifactId>
-			<version>0.2.253</version>
+			<version>0.2.254</version>
 		</dependency>
 
 		<!-- tests -->
