@@ -43,7 +43,10 @@ abstract class AbstractVitalServiceVertxTest extends TestCase {
 	 */
 	void deployModules(LocalTestPlatform ltp) {
 		
-		ltp.pm.deployModule("vital-ai~vitalservice-vertx-mod~0.2.255", new JsonObject(), 1, new AsyncResultHandler<String>() {
+		JsonObject cfg = new JsonObject();
+		cfg.putString("key", "aaaa-aaaa-aaaa")
+		
+		ltp.pm.deployModule("vital-ai~vitalservice-vertx-mod~0.2.300", cfg, 1, new AsyncResultHandler<String>() {
 			public void handle(AsyncResult<String> asyncResult) {
 				if (asyncResult.succeeded()) {
 					println("Vital Service deployment ID is " + asyncResult.result());

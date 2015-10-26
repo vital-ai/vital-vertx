@@ -9,20 +9,20 @@ import org.vertx.groovy.core.eventbus.Message
 import ai.vital.query.querybuilder.VitalBuilder
 import ai.vital.service.vertx.binary.PayloadMessage;
 import ai.vital.service.vertx.binary.ResponseMessage;
-import ai.vital.service.vertx.json.VitalServiceJSONMapper
 import ai.vital.vitalservice.ServiceOperations
-import ai.vital.vitalservice.Transaction
 import ai.vital.vitalservice.VitalService
 import ai.vital.vitalservice.VitalStatus
 import ai.vital.vitalservice.factory.VitalServiceFactory
 import ai.vital.vitalservice.query.VitalPathQuery
 import ai.vital.vitalservice.query.VitalQuery
-import ai.vital.vitalservice.segment.VitalSegment
 import ai.vital.vitalsigns.java.VitalJavaSerializationUtils;
 import ai.vital.vitalsigns.meta.GraphContext
 import ai.vital.vitalsigns.model.GraphObject
 import ai.vital.vitalsigns.model.VITAL_Event
+import ai.vital.vitalsigns.model.VitalSegment;
+import ai.vital.vitalsigns.model.VitalTransaction;
 import ai.vital.vitalsigns.model.property.URIProperty
+
 
 class VitalServiceHandler extends AbstractVitalServiceHandler {
 
@@ -30,15 +30,21 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 	
 	private final static Logger log = LoggerFactory.getLogger(VitalServiceHandler.class)
 	
-	public VitalServiceHandler(Vertx vertx) {
+	VitalService service
+	
+	public VitalServiceHandler(Vertx vertx, VitalService _service) {
 		super(vertx);
+		this.service = _service
 	}
 
+	protected VitalTransaction transaction(VitalTransaction t) {
+		if(t == null || t.URI.equals(VitalService.NO_TRANSACTION.URI)) return null
+		return t
+	}
+	
 	protected Object handleMethod(String method, Object[] a) {
 		
 		Object response = null
-			
-		VitalService service = VitalServiceFactory.getVitalService()
 			
 		if(method == 'bulkExport') {
 				
@@ -62,7 +68,7 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 				
 		} else if(method == 'commitTransaction') {
 			
-			checkParams(method, a, true, Transaction.class)	
+			checkParams(method, a, true, VitalTransaction.class)	
 			
 			service.commitTransaction(a[0])
 				
@@ -75,41 +81,41 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 		} else if(method == 'delete') {
 			
 			if(
-				! checkParams(method, a, false, URIProperty.class) &&
-				! checkParams(method, a, false, List.class)
+				! checkParams(method, a, false, VitalTransaction.class, URIProperty.class) &&
+				! checkParams(method, a, false, VitalTransaction.class, List.class)
 			) {
-				throw new RuntimeException("${method} expects either a ${URIProperty.class.simpleName} or a list of ${URIProperty.class.simpleName} objects")
+				throw new RuntimeException("${method} expects VitalTransaction and either a ${URIProperty.class.simpleName} or a list of ${URIProperty.class.simpleName} objects")
 			}
 				
-			response = service.delete(a[0])
+			response = service.delete(transaction(a[0]), a[1])
 				
 		} else if(method == 'deleteExpanded') {
 			
-			if( checkParams(method, a, false, URIProperty.class) ) {
-				response = service.deleteExpanded(a[0])
-			} else if(checkParams(method, a, false, List.class) ) {
-				response = service.deleteExpanded(a[0])
-			} else if(checkParams(method, a, false, URIProperty.class, VitalPathQuery.class) || checkParams(method, a, false, URIProperty.class, VitalPathQuery.class)) {
+			if( checkParams(method, a, false, VitalTransaction.class, URIProperty.class) ) {
+				response = service.deleteExpanded(transaction(a[0]), a[1])
+			} else if(checkParams(method, a, false, VitalTransaction.class, List.class) ) {
+				response = service.deleteExpanded(transaction(a[0]), a[1])
+			} else if(checkParams(method, a, false, VitalTransaction.class, URIProperty.class, VitalPathQuery.class) || checkParams(method, a, false, VitalTransaction.class, URIProperty.class, VitalPathQuery.class)) {
 				queryFilter(a, 1)
-				response = service.deleteExpanded(a[0], a[1])
+				response = service.deleteExpanded(transaction(a[0]), a[1], a[2])
 			} else {
-				throw new RuntimeException("${method} expects either a ${URIProperty.class.simpleName} or a list of ${URIProperty.class.simpleName} objects or an ${URIProperty.class.simpleName},${VitalPathQuery.class.simpleName} ")
+				throw new RuntimeException("${method} expects VitalTransaction and either a ${URIProperty.class.simpleName} or a list of ${URIProperty.class.simpleName} objects or an ${URIProperty.class.simpleName},${VitalPathQuery.class.simpleName} ")
 			}
 				
 		} else if(method == 'deleteExpandedObject') {
 		
 		
-			checkParams(method, a, false, GraphObject.class)
+			checkParams(method, a, false, VitalTransaction.class, GraphObject.class)
 				
-			response = service.deleteExpandedObject(a[0])
+			response = service.deleteExpandedObject(transaction(a[0]), a[1])
 			
 		} else if(method == 'deleteExpandedObjects') {
 		
 			queryFilter(a, 1)
 		
-			checkParams(method, a, false, List.class, VitalPathQuery.class)
+			checkParams(method, a, false, VitalTransaction.class, List.class, VitalPathQuery.class)
 			
-			response = service.deleteExpandedObjects(a[0], a[1])
+			response = service.deleteExpandedObjects(transaction(a[0]), a[1], a[2])
 			
 		} else if(method == 'deleteFile') {
 		
@@ -121,15 +127,15 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 				
 		} else if(method == 'deleteObject') {
 		
-			checkParams(method, a, true, GraphObject.class)
+			checkParams(method, a, true, VitalTransaction.class, GraphObject.class)
 			
-			response = service.deleteObject(a[0])
+			response = service.deleteObject(transaction(a[0]), a[1])
 			
 		} else if(method == 'deleteObjects') {
 		
-			checkParams(method, a, true, List.class)
+			checkParams(method, a, true, VitalTransaction.class, List.class)
 			
-			response = service.deleteObjects(a[0])
+			response = service.deleteObjects(transaction(a[0]), a[1])
 			
 		} else if(method == 'doOperations') {
 			
@@ -228,13 +234,13 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'insert') {
 		
-			if( checkParams(method, a, false, VitalSegment.class, GraphObject.class) 
-				|| checkParams(method, a, false, VitalSegment.class, List.class) ) {
+			if( checkParams(method, a, false, VitalTransaction.class, VitalSegment.class, GraphObject.class) 
+				|| checkParams(method, a, false, VitalTransaction.class, VitalSegment.class, List.class) ) {
 				
-				response = service.insert(a[0], a[1])
+				response = service.insert(transaction(a[0]), a[1], a[2])
 			} else {
 			
-				throw new RuntimeException("${method} expects VitalSegment.class and either GraphObject or list of GraphObjects")
+				throw new RuntimeException("${method} expects a transaction, VitalSegment.class and either GraphObject or list of GraphObjects")
 			
 			}
 		} else if(method == 'listFiles') {
@@ -245,11 +251,23 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 //				
 //				response = service.listFiles(a[0])
 			
+		} else if(method == 'listDatabaseConnections') {
+		
+			checkParams(method, a, true)
+			
+			response = service.listDatabaseConnections()
+		
 		} else if(method == 'listSegments') {
 		
 			checkParams(method, a, true)
 		
 			response = service.listSegments()
+			
+		} else if(method == 'listSegmentsWithConfig') {
+		
+			checkParams(method, a, true)
+			
+			response = service.listSegmentsWithConfig()
 		
 		} else if(method == 'ping') {
 		
@@ -283,25 +301,25 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'rollbackTransaction') {
 		
-			checkParams(method, a, true, Transaction.class)
+			checkParams(method, a, true, VitalTransaction.class)
 		
 			response = service.rollbackTransaction(a[0])
 		
 		} else if(method == 'save') {
 		
 			if(
-				checkParams(method, a, false, GraphObject.class) ||
-				checkParams(method, a, false, List.class)
+				checkParams(method, a, false, VitalTransaction.class, GraphObject.class) ||
+				checkParams(method, a, false, VitalTransaction.class, List.class)
 				
 			){
-				response = service.save(a[0])
+				response = service.save(transaction(a[0]), a[1])
 			} else if(
-				checkParams(method, a, false, VitalSegment.class, GraphObject.class, Boolean.class) ||
-				checkParams(method, a, false, VitalSegment.class, List.class, Boolean.class)
+				checkParams(method, a, false, VitalTransaction.class, VitalSegment.class, GraphObject.class, Boolean.class) ||
+				checkParams(method, a, false, VitalTransaction.class, VitalSegment.class, List.class, Boolean.class)
 			){
-				response = service.save(a[0], a[1], a[2])
+				response = service.save(transaction(a[0]), a[1], a[2], a[3])
 			} else {
-				throw new RuntimeException("${method} expects GraphObject or list of GraphObjects, or ( Vital, Segment GraphObject|List, boolean) triple")
+				throw new RuntimeException("${method} expects VitalTransaction, GraphObject or list of GraphObjects, or ( VitalTransaction, VitalSegment GraphObject|List, boolean) quad")
 			}
 			
 		} else if(method == 'sendEvent') {
@@ -324,12 +342,6 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 			
 			response = VitalStatus.withOK()
 			
-		} else if(method == 'setTransaction') {
-		
-			checkParams(method, a, true, Transaction.class)
-			
-			response = service.setTransaction(a[0])
-		
 		} else if(method == 'uploadFile') {
 		
 			unsupported(method)

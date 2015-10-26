@@ -12,8 +12,6 @@ import ai.vital.service.vertx.handler.CallFunctionHandler;
 import ai.vital.vitalservice.VitalStatus;
 import ai.vital.vitalservice.exception.VitalServiceException;
 import ai.vital.vitalservice.exception.VitalServiceUnimplementedException;
-import ai.vital.vitalservice.model.App;
-import ai.vital.vitalservice.model.Organization;
 import ai.vital.vitalservice.query.ResultList;
 import ai.vital.vitalsigns.model.VITAL_Node
 

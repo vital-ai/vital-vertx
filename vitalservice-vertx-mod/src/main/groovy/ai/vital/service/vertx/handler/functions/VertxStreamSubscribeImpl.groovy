@@ -2,14 +2,15 @@ package ai.vital.service.vertx.handler.functions
 
 import java.util.Map;
 
+import ai.vital.domain.Organization
 import ai.vital.service.vertx.handler.AbstractVitalServiceHandler;
 import ai.vital.service.vertx.handler.Subscription;
 import ai.vital.vitalservice.VitalStatus;
 import ai.vital.vitalservice.exception.VitalServiceException;
 import ai.vital.vitalservice.exception.VitalServiceUnimplementedException;
-import ai.vital.vitalservice.model.App;
-import ai.vital.vitalservice.model.Organization;
 import ai.vital.vitalservice.query.ResultList;
+import ai.vital.vitalsigns.model.VitalApp
+import ai.vital.vitalsigns.model.VitalOrganization
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory 
 
@@ -22,7 +23,7 @@ class VertxStreamSubscribeImpl extends VertxHandler {
 	}
 
 	@Override
-	public ResultList callFunction(Organization organization, App app,
+	public ResultList callFunction(VitalOrganization organization, VitalApp app,
 			String function, Map<String, Object> params)
 			throws VitalServiceUnimplementedException, VitalServiceException {
 

@@ -13,8 +13,8 @@ import org.vertx.java.platform.PlatformManager
 
 import ai.vital.service.vertx.binary.PayloadMessage
 import ai.vital.service.vertx.binary.ResponseMessage;
-import ai.vital.service.vertx.json.VitalServiceJSONMapper;
 import ai.vital.vitalservice.VitalStatus;
+import ai.vital.vitalservice.json.VitalServiceJSONMapper;
 import ai.vital.vitalsigns.java.VitalJavaSerializationUtils;
 
 

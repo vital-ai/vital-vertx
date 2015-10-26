@@ -17,13 +17,13 @@ import ai.vital.service.vertx.handler.functions.VertxStreamListStreamSubscribers
 import ai.vital.service.vertx.handler.functions.VertxStreamSubscribeImpl
 import ai.vital.service.vertx.handler.functions.VertxStreamUnsubscribeImpl;
 import ai.vital.service.vertx.handler.functions.VertxUnregisterImpl
-import ai.vital.service.vertx.json.VitalServiceJSONMapper
 import ai.vital.vitalservice.VitalStatus
-import ai.vital.vitalservice.model.App
-import ai.vital.vitalservice.model.Organization
+import ai.vital.vitalservice.json.VitalServiceJSONMapper;
 import ai.vital.vitalservice.query.ResultList
 import ai.vital.vitalservice.query.VitalQuery
 import ai.vital.vitalsigns.java.VitalJavaSerializationUtils
+import ai.vital.vitalsigns.model.VitalApp
+import ai.vital.vitalsigns.model.VitalOrganization;
 
 abstract class AbstractVitalServiceHandler {
 
@@ -270,7 +270,7 @@ abstract class AbstractVitalServiceHandler {
 	 * Returns null if it should falls back to service call function
 	 * @return ResultList if callFunction handled, false to fall back to lower layer  
 	 */
-	protected ResultList callFunctionLogic(Organization organization, App app, String function, Map<String, Object> params) {
+	protected ResultList callFunctionLogic(VitalOrganization organization, VitalApp app, String function, Map<String, Object> params) {
 		
 		CallFunctionHandler handler = callFunctionHandlers.get(function)
 		

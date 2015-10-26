@@ -6,8 +6,6 @@ import ai.vital.service.vertx.handler.AbstractVitalServiceHandler;
 import ai.vital.service.vertx.handler.CallFunctionHandler;
 import ai.vital.vitalservice.exception.VitalServiceException;
 import ai.vital.vitalservice.exception.VitalServiceUnimplementedException;
-import ai.vital.vitalservice.model.App;
-import ai.vital.vitalservice.model.Organization;
 import ai.vital.vitalservice.query.ResultList;
 
 abstract class VertxHandler implements CallFunctionHandler {

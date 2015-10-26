@@ -1,23 +1,28 @@
 package ai.vital.service.vertx.async
 
+import groovy.lang.Closure;
+
 import org.apache.commons.lang3.SerializationUtils;
 import org.vertx.groovy.core.Vertx
 import org.vertx.groovy.core.eventbus.Message
 
+import ai.vital.query.Node;
 import ai.vital.service.vertx.VitalServiceMod;
 import ai.vital.service.vertx.binary.PayloadMessage
 import ai.vital.service.vertx.binary.ResponseMessage;
 import ai.vital.vitalservice.ServiceOperations
-import ai.vital.vitalservice.Transaction
+import static ai.vital.vitalservice.VitalService.NO_TRANSACTION;
 import ai.vital.vitalservice.query.VitalPathQuery
 import ai.vital.vitalservice.query.VitalQuery
-import ai.vital.vitalservice.segment.VitalSegment
 import ai.vital.vitalsigns.java.VitalJavaSerializationUtils;
 import ai.vital.vitalsigns.meta.GraphContext
 import ai.vital.vitalsigns.model.GraphObject
 import ai.vital.vitalsigns.model.VITAL_Event
+import ai.vital.vitalsigns.model.VitalSegment
+import ai.vital.vitalsigns.model.VitalTransaction
 import ai.vital.vitalsigns.model.container.GraphObjectsIterable
 import ai.vital.vitalsigns.model.property.URIProperty
+
 
 /**
  * Asynchronous version of vital service on vertx
@@ -50,62 +55,119 @@ class VitalServiceAsyncClient {
 //	bulkExport(VitalSegment, OutputStream)
 //	bulkImport(VitalSegment, InputStream)
 	
+	//ResultList
 	void callFunction(String function, Map<String, Object> arguments, Closure closure) {
 		impl(closure, 'callFunction', [function, arguments])
 	}
 	
+	//VitalStatus
 	void close(Closure closure) {
 		impl(closure, 'close', [])
 	}
 	
-	void commitTransaction(Transaction transaction, Closure closure) {
+	//VitalStatus
+	void commitTransaction(VitalTransaction transaction, Closure closure) {
 		impl(closure, 'commitTransaction', [transaction])
 	}
 	
+	//VitalTransaction
 	void createTransaction(Closure closure) {
 		impl(closure, 'createTransaction', [])
 	}
 
+	
+	//VitalStatus
 	void delete(List<URIProperty> uris, Closure closure) {
-		impl(closure, 'delete', [uris]) 
+		impl(closure, 'delete', [NO_TRANSACTION, uris]) 
 	}
 	
+	//VitalStatus
+	void delete(VitalTransaction transaction, List<URIProperty> uris, Closure closure) {
+		impl(closure, 'delete', [transaction, uris]) 
+	}
+	
+	
+	//VitalStatus
 	void delete(URIProperty uri, Closure closure) {
-		impl(closure, 'delete', [uri])
+		impl(closure, 'delete', [NO_TRANSACTION, uri])
 	}
+	
+	//VitalStatus
+	void delete(VitalTransaction transaction, URIProperty uri, Closure closure) {
+		impl(closure, 'delete', [transaction, uri])
+	}
+	
 
+	//VitalStatus
 	void deleteExpanded(List<URIProperty> uris, VitalPathQuery pathQuery, Closure closure) {
-		impl(closure, 'deleteExpanded', [uris, pathQuery])
+		impl(closure, 'deleteExpanded', [NO_TRANSACTION, uris, pathQuery])
 	}
 	
+	//VitalStatus
+	void deleteExpanded(VitalTransaction transaction, List<URIProperty> uris, VitalPathQuery pathQuery, Closure closure) {
+		impl(closure, 'deleteExpanded', [transaction, uris, pathQuery])
+	}
+	
+
+	//VitalStatus	
 	void deleteExpanded(URIProperty uri, Closure closure) {
-		impl(closure, 'deleteExpanded', [uri])
+		impl(closure, 'deleteExpanded', [NO_TRANSACTION, uri])
+	}
+	
+	//VitalStatus
+	void deleteExpanded(VitalTransaction transaction, URIProperty uri, Closure closure) {
+		impl(closure, 'deleteExpanded', [transaction, uri])
 	}
 	
 	
+	//VitalStatus
 	void deleteExpanded(URIProperty uri, VitalPathQuery pathQuery, Closure closure) {
-		impl(closure, 'deleteExpanded', [uri, pathQuery])
+		impl(closure, 'deleteExpanded', [NO_TRANSACTION, uri, pathQuery])
 	}
 	
+	//VitalStatus
+	void deleteExpanded(VitalTransaction transaction, URIProperty uri, VitalPathQuery pathQuery, Closure closure) {
+		impl(closure, 'deleteExpanded', [transaction, uri, pathQuery])
+	}
+	
+	
+	//VitalStatus
 	void deleteExpandedObject(GraphObject graphObject, Closure closure) {
-		impl(closure, 'deleteExpandedObject', [graphObject])
+		impl(closure, 'deleteExpandedObject', [NO_TRANSACTION, graphObject])
 	}
 	
-	void deleteExpandedObjects(List<GraphObject> graphObjects, VitalPathQuery pathQuery, Closure closure) {
-		impl(closure, 'deleteExpandedObjects', [graphObjects, pathQuery])
+	//VitalStatus
+	void deleteExpandedObjects(VitalTransaction transaction, List<GraphObject> graphObjects, VitalPathQuery pathQuery, Closure closure) {
+		impl(closure, 'deleteExpandedObjects', [transaction, graphObjects, pathQuery])
 	}
+	
 	
 //	void deleteFile(URIProperty uri, String name, Closure closure) {
 //		impl(closure, 'deleteFile', [uri, name])
 //	}
 	
+	
+	//VitalStatus
 	void deleteObject(GraphObject graphObject, Closure closure) {
-		impl(closure, 'deleteObject', [graphObject])
+		impl(closure, 'deleteObject', [NO_TRANSACTION, graphObject])
 	}
 	
-	void deleteObjects(List<GraphObject> graphObjects, Closure closure) {
-		impl(closure, 'deleteObjects', [graphObjects])
+	//VitalStatus
+	void deleteObject(VitalTransaction transaction, GraphObject graphObject, Closure closure) {
+		impl(closure, 'deleteObject', [transaction, graphObject])
 	}
+	
+	
+	//VitalStatus
+	void deleteObjects(List<GraphObject> graphObjects, Closure closure) {
+		impl(closure, 'deleteObjects', [NO_TRANSACTION, graphObjects])
+	}
+	
+	//VitalStatus
+	void deleteObjects(VitalTransaction transaction, List<GraphObject> graphObjects, Closure closure) {
+		impl(closure, 'deleteObjects', [transaction, graphObjects])
+	}
+	
 	
 	void doOperations(ServiceOperations serviceOps, Closure closure) {
 		impl(closure, 'doOperations', [serviceOps])
@@ -167,34 +229,76 @@ class VitalServiceAsyncClient {
 		impl(closure, 'getExpanded', [uri, pathQuery, cache])
 	}
 	
+	//String
+	void getName(Closure closure) {
+		impl(closure, 'getName', [])
+	}
+	
 	void getOrganization(Closure closure) {
 		impl(closure, 'getOrganization', [])
+	}
+	
+	
+	//VitalSegment
+	void getSegment(String segmentID, Closure closure) {
+		impl(closure, 'getSegment', [segmentID])
 	}
 	
 	void getTransactions(Closure closure) {
 		impl(closure, 'getTransactions', [])
 	}
 	
+	
+	//ResultList
 	void insert(VitalSegment segment, GraphObject graphObject, Closure closure) {
-		impl(closure, 'insert', [segment, graphObject])
+		impl(closure, 'insert', [NO_TRANSACTION, segment, graphObject])
 	}
 	
+	//ResultList
+	void insert(VitalTransaction transaction, VitalSegment segment, GraphObject graphObject, Closure closure) {
+		impl(closure, 'insert', [transaction, segment, graphObject])
+	}
+	
+	
+	//ResultList
 	void insert(VitalSegment segment, List<GraphObject> graphObjects, Closure closure) {
-		impl(closure, 'insert', [segment, graphObjects])
+		impl(closure, 'insert', [NO_TRANSACTION, segment, graphObjects])
+	}
+	
+	//ResultList
+	void insert(VitalTransaction transaction, VitalSegment segment, List<GraphObject> graphObjects, Closure closure) {
+		impl(closure, 'insert', [transaction, segment, graphObjects])
+	}
+	
+	
+	//ResultList
+	void listDatabaseConnections(Closure closure) {
+		impl(closure, 'listDatabaseConnections', [])
 	}
 	
 //	void listFiles(String filePath, Closure closure) {
 //		impl(closure, 'listFiles', [filePath])
 //	}
 	
+	
+	//List<VitalSegment>
 	void listSegments(Closure closure) {
 		impl(closure, 'listSegments', [])
 	}
 	
+	//ResultList
+	void listSegmentsWithConfig(Closure closure) {
+		impl(closure, 'listSegmentsWithConfig', [])
+	}
+	
+	//VitalStatus
 	void ping(Closure closure) {
 		impl(closure, 'ping', [])
 	}
+
 	
+	//VitalPipeline ai.vital.vitalservice.VitalService.pipeline(Closure<?>)
+		
 	void query(VitalQuery query, Closure closure) {
 		impl(closure, 'query', [query])
 	}
@@ -205,25 +309,53 @@ class VitalServiceAsyncClient {
 		impl(closure, 'queryLocal', [query])
 	}
 	
-	void rollbackTransaction(Transaction transaction, Closure closure) {
+	void rollbackTransaction(VitalTransaction transaction, Closure closure) {
 		impl(closure, 'rollbackTransaction', [transaction])
 	}
+
 	
+	//ResultList	
 	void save(GraphObject graphObject, Closure closure) {
-		impl(closure, 'save', [graphObject])
+		impl(closure, 'save', [NO_TRANSACTION, graphObject])
 	}
 	
+	//ResultList	
+	void save(VitalTransaction transaction, GraphObject graphObject, Closure closure) {
+		impl(closure, 'save', [transaction, graphObject])
+	}
+	
+	
+	//ResultList	
 	void save(List<GraphObject> graphObjects, Closure closure) {
-		impl(closure, 'save', [graphObjects])
+		impl(closure, 'save', [NO_TRANSACTION,graphObjects])
+	}
+	//ResultList	
+	void save(VitalTransaction transaction, List<GraphObject> graphObjects, Closure closure) {
+		impl(closure, 'save', [transaction, graphObjects])
 	}
 	
+	
+	//ResultList
 	void save(VitalSegment segment, GraphObject graphObject, boolean create, Closure closure) {
-		impl(closure, 'save', [segment, graphObject, create])
+		impl(closure, 'save', [NO_TRANSACTION, segment, graphObject, create])
 	}
 	
-	void save(VitalSegment segment, List<GraphObject> graphObjects, boolean create, Closure closure) {
-		impl(closure, 'save', [segment, graphObjects, create])
+	//ResultList
+	void save(VitalTransaction transaction, VitalSegment segment, GraphObject graphObject, boolean create, Closure closure) {
+		impl(closure, 'save', [transaction, segment, graphObject, create])
 	}
+	
+	
+	//ResultList
+	void save(VitalSegment segment, List<GraphObject> graphObjects, boolean create, Closure closure) {
+		impl(closure, 'save', [NO_TRANSACTION, segment, graphObjects, create])
+	}
+	
+	//ResultList
+	void save(VitalTransaction transaction, VitalSegment segment, List<GraphObject> graphObjects, boolean create, Closure closure) {
+		impl(closure, 'save', [transaction, segment, graphObjects, create])
+	}
+	
 	
 	void sendEvent(VITAL_Event event, boolean waitForDelivery, Closure closure) {
 		impl(closure, 'sendEvent', [event, waitForDelivery])
@@ -234,12 +366,9 @@ class VitalServiceAsyncClient {
 		impl(closure, 'sendEvents', [events, waitForDelivery])
 	}
 	
+	
 	void setDefaultSegmentName(String defaultSegment, Closure closure) {
 		impl(closure, 'setDefaultSegmentName', [defaultSegment])
-	}
-	
-	void setTransaction(Transaction transaction, Closure closure) {
-		impl(closure, 'setTransaction', [transaction])
 	}
 	
 //	uploadFile(URIProperty, String, InputStream, boolean, Closure closure)
