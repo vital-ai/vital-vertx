@@ -59,7 +59,7 @@ abstract class AbstractVitalServiceVertxTest extends TestCase {
 				
 			}
 		});
-		
+	
 	}
 	
 	

@@ -31,9 +31,9 @@ abstract class AbstractVitalServiceHandler {
 	
 	private final static Logger log = LoggerFactory.getLogger(AbstractVitalServiceHandler.class)
 	
-	protected abstract Object handleMethod(String method, Object[] args)
+	protected abstract void handleMethod(String method, Object[] args, Closure closure)
 	
-	static Map<String, CallFunctionHandler> callFunctionHandlers
+	static Map<String, ICallFunctionHandler> callFunctionHandlers
 	
 	static Map<String, Subscription> subscriptions = [:]
 	
@@ -45,8 +45,6 @@ abstract class AbstractVitalServiceHandler {
 
 		ResponseMessage binaryResponse = null
 		
-		Object response = null
-				
 		try {
 			
 			Object bodyObj = msg.body()
@@ -107,7 +105,121 @@ abstract class AbstractVitalServiceHandler {
 			
 			}
 		
-			response = handleMethod(method, a)
+			handleMethod(method, a) { Object response ->
+			
+				handleAsyncResponse(msg, binaryResponse, jsonResponse, response)
+					
+			}
+		
+//			if(jsonResponse != null) {
+//				
+//				if(response != null) {
+//					
+//					if(response instanceof VitalStatus) {
+//						jsonResponse.put('status', ((VitalStatus)response).status.name())
+//						jsonResponse.put('message',  ((VitalStatus)response).message)
+//					}
+//					
+//					if(response instanceof ResultList) {
+//						
+//						ResultList rl = response
+//						
+//						VitalStatus status = rl.status
+//						
+//						if(status != null) {
+//							
+//							jsonResponse.put('status', status.status.name())
+//							jsonResponse.put('message',  status.message)
+//							
+//						}
+//
+//					}
+//					
+//					response = VitalServiceJSONMapper.toJSON(response)		
+//							
+//					jsonResponse.put('response', response) 
+//				}
+//				
+//				if(jsonResponse.get('status') == null)  { 
+//					jsonResponse.put('status', 'ok')
+//				}
+//				
+//			}
+//			
+//			if(binaryResponse != null) {
+//				
+//				binaryResponse.response = response
+//				
+//			}
+			
+		} catch(Exception e) {
+			
+			log.warn(e.localizedMessage)
+			
+			handleAsyncResponse(msg, binaryResponse, jsonResponse, e)
+			
+			
+//			if(binaryResponse != null) {
+//				
+//				binaryResponse.exceptionMessage = e.getLocalizedMessage()
+//				binaryResponse.exceptionType = e.class.canonicalName
+//				
+//				if(!binaryResponse.exceptionMessage) binaryResponse.exceptionMessage = "(no exception message)"
+//				
+//			}
+//			
+//			if(jsonResponse != null) {
+//				jsonResponse.put('status', 'error')
+//				jsonResponse.put('exception', true)
+//				jsonResponse.put('exceptionType', e.class.canonicalName)
+//				jsonResponse.put('message', e.getLocalizedMessage())
+//			}
+			
+			
+		}
+		
+//		
+//		if(jsonResponse != null) {
+//			msg.reply(jsonResponse)
+//		}
+//		
+//		if(binaryResponse) {
+//			
+//			msg.reply( SerializationUtils.serialize(binaryResponse) )
+//			
+//		}
+					
+	}
+	
+	protected handleAsyncResponse(Message msg, ResponseMessage binaryResponse, Map jsonResponse, Object response) {
+		
+		if(response instanceof Exception) {
+		
+			Exception e = response
+			
+			if(binaryResponse != null) {
+				
+				binaryResponse.exceptionMessage = e.getLocalizedMessage()
+				binaryResponse.exceptionType = e.class.canonicalName
+				
+				if(!binaryResponse.exceptionMessage) binaryResponse.exceptionMessage = "(no exception message)"
+				
+			}
+			
+			if(jsonResponse != null) {
+				jsonResponse.put('status', 'error')
+				jsonResponse.put('exception', true)
+				jsonResponse.put('exceptionType', e.class.canonicalName)
+				jsonResponse.put('message', e.getLocalizedMessage())
+			}
+				
+		} else {
+		
+			if(response == ASYNC_HANDLER_RS) {
+				return
+			}
+		
+			//just serialize it
 		
 			if(jsonResponse != null) {
 				
@@ -130,15 +242,15 @@ abstract class AbstractVitalServiceHandler {
 							jsonResponse.put('message',  status.message)
 							
 						}
-
+	
 					}
 					
-					response = VitalServiceJSONMapper.toJSON(response)		
+					response = VitalServiceJSONMapper.toJSON(response)
 							
-					jsonResponse.put('response', response) 
+					jsonResponse.put('response', response)
 				}
 				
-				if(jsonResponse.get('status') == null)  { 
+				if(jsonResponse.get('status') == null)  {
 					jsonResponse.put('status', 'ok')
 				}
 				
@@ -150,39 +262,19 @@ abstract class AbstractVitalServiceHandler {
 				
 			}
 			
-		} catch(Exception e) {
-			
-			log.warn(e.localizedMessage)
-			
-			if(binaryResponse != null) {
-				
-				binaryResponse.exceptionMessage = e.getLocalizedMessage()
-				binaryResponse.exceptionType = e.class.canonicalName
-				
-				if(!binaryResponse.exceptionMessage) binaryResponse.exceptionMessage = "(no exception message)"
-				
-			}
-			
-			if(jsonResponse != null) {
-				jsonResponse.put('status', 'error')
-				jsonResponse.put('exception', true)
-				jsonResponse.put('exceptionType', e.class.canonicalName)
-				jsonResponse.put('message', e.getLocalizedMessage())
-			}
-			
-			
+		
 		}
 		
 		if(jsonResponse != null) {
 			msg.reply(jsonResponse)
 		}
 		
-		if(binaryResponse) {
+		if(binaryResponse != null) {
 			
 			msg.reply( SerializationUtils.serialize(binaryResponse) )
 			
 		}
-					
+		
 	}
 	
 	public AbstractVitalServiceHandler(Vertx vertx) {
@@ -201,7 +293,7 @@ abstract class AbstractVitalServiceHandler {
 			
 			if(callFunctionHandlers != null) return
 			
-			callFunctionHandlers = Collections.synchronizedMap(new LinkedHashMap<String, CallFunctionHandler>())
+			callFunctionHandlers = Collections.synchronizedMap(new LinkedHashMap<String, ICallFunctionHandler>())
 			
 			callFunctionHandlers.put(CallFunctionHandler.VERTX_REGISTER_HANDLER, new VertxRegisterImpl(this))
 			callFunctionHandlers.put(CallFunctionHandler.VERTX_UNREGISTER_HANDLER, new VertxUnregisterImpl(this))
@@ -263,6 +355,8 @@ abstract class AbstractVitalServiceHandler {
 		
 	}
 	
+	final static ResultList ASYNC_HANDLER_RS = new ResultList()
+	
 	/**
 	 * Default call function logic. 
 	 * At first it tries to call special vertx functions for managing handlers.
@@ -270,24 +364,54 @@ abstract class AbstractVitalServiceHandler {
 	 * Returns null if it should falls back to service call function
 	 * @return ResultList if callFunction handled, false to fall back to lower layer  
 	 */
-	protected ResultList callFunctionLogic(VitalOrganization organization, VitalApp app, String function, Map<String, Object> params) {
+	protected ResultList callFunctionLogic(VitalOrganization organization, VitalApp app, String function, Map<String, Object> params, Closure closure) {
 		
-		CallFunctionHandler handler = callFunctionHandlers.get(function)
+		ICallFunctionHandler handler = callFunctionHandlers.get(function)
 		
 		if(handler != null) {
-			try {
-				
-				ResultList rl = handler.callFunction(organization, app, function, params)
-				if(rl == null) throw new RuntimeException("Handler ${handler.class.canonicalName} did not return ResultList object")
-				return rl
-				
-			} catch(Exception e) {
 			
+			if(handler instanceof CallFunctionHandler) {
+				
+				CallFunctionHandler cfh = handler
+				
+				try {
+					
+					ResultList rl = cfh.callFunction(organization, app, function, params)
+					if(rl == null) throw new RuntimeException("Handler ${handler.class.canonicalName} did not return ResultList object")
+					return rl
+							
+				} catch(Exception e) {
+					
+					ResultList rl = new ResultList()
+					rl.setStatus(VitalStatus.withError(e.getLocalizedMessage()))
+					
+					return rl
+				}
+				
+			} else if(handler instanceof AsyncCallFunctionHandler) {
+			
+				AsyncCallFunctionHandler acfh = handler
+				
+				try {
+					
+					acfh.callFunction(organization, app, function, params, closure)
+					
+				} catch(Exception e) {
+				
+					ResultList rl = new ResultList()
+					rl.setStatus(VitalStatus.withError(e.getLocalizedMessage()))
+					
+					return rl
+				
+				}
+				
+				return ASYNC_HANDLER_RS	
+			
+			} else {
 				ResultList rl = new ResultList()
-				rl.setStatus(VitalStatus.withError(e.getLocalizedMessage()))
-			
-				return rl
+				rl.setStatus(VitalStatus.withError("unknown call function handler:" + handler.class.canonicalName))
 			}
+			
 		}
 		
 		return null

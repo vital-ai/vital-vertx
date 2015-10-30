@@ -1,0 +1,5 @@
+/bin_classes
+/.settings/
+/mods/io.vertx~*
+mods/vital-ai~vitalservice-vertx-mod~*/
+/target/

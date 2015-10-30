@@ -211,7 +211,7 @@ class VitalServiceAdminAsyncClient {
 	
 	
 	void getApp(String appID, Closure closure) {
-		impl(closure, 'getApp', [appID, closure])
+		impl(closure, 'getApp', [appID])
 	}
 	
 	void getEndpointType(Closure closure) {

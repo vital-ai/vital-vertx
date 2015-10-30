@@ -48,7 +48,7 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 		return t
 	}
 	
-	protected Object handleMethod(String method, Object[] a) {
+	protected void handleMethod(String method, Object[] a, Closure closure) {
 
 		Object response = null
 	
@@ -82,7 +82,7 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 			
 			checkParams(method, a, true, VitalApp.class, String.class, Map.class)
 			
-			response = callFunctionLogic(service.getOrganization(), a[0], a[1], a[2])
+			response = callFunctionLogic(service.getOrganization(), a[0], a[1], a[2], closure)
 			
 			if(response == null) response = service.callFunction(a[0], a[1], a[2])
 			 
@@ -419,7 +419,7 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 			throw new NoSuchMethodException("No method in vitalservice: ${method}")
 		}
 		
-		return response
+		closure(response)
 			
 	}
 	

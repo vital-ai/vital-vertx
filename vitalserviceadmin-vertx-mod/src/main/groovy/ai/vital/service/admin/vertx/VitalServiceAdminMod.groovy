@@ -22,7 +22,6 @@ public class VitalServiceAdminMod extends Verticle {
 		
 		VitalSigns.get()
 		
-		
 		VitalServiceAdmin vitalServiceAdmin = null
 		
 		synchronized (VitalServiceAdminMod.class) {
