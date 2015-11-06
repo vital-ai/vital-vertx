@@ -3,6 +3,7 @@ package ai.vital.service.vertx.handler.functions
 import java.util.Map
 
 import ai.vital.service.vertx.handler.AbstractVitalServiceHandler;
+import ai.vital.service.vertx.handler.ICallFunctionHandler;
 import ai.vital.service.vertx.handler.CallFunctionHandler;
 import ai.vital.vitalservice.VitalStatus;
 import ai.vital.vitalservice.exception.VitalServiceException;
@@ -32,13 +33,21 @@ class VertxRegisterImpl extends VertxHandler {
 		if( CallFunctionHandler.allHandlers.contains( functionName ) )
 			throw new Exception("Function name is forbidden: ${functionName}" )
 		
-		if( handler.callFunctionHandlers.containsKey(functionName)) throw new Exception("Function already registered: ${functionName}")
+		if(app == null) throw new RuntimeException("No app specified")
+		String appID = app.appID?.toString()
+		if(!appID) throw new RuntimeException("No appID param")
 		
-		CallFunctionHandler handlerInstance = null
+		Map<String, ICallFunctionHandler> appHandlers = handler.appFunctionHandlers.get(appID)
+		if(appHandlers != null && appHandlers.containsKey(functionName)) {
+			throw new Exception("Function already registered: ${functionName}, app: ${appID}")
+		}	
+		
+		
+		ICallFunctionHandler handlerInstance = null
 		try {
 			Class cls = Class.forName(handlerClass)
 			
-			if(!CallFunctionHandler.class.isAssignableFrom(cls)) {
+			if(!ICallFunctionHandler.class.isAssignableFrom(cls)) {
 				throw new Exception("Handler class does not implement ${CallFunctionHandler.class.canonicalName}")
 			}
 			
@@ -48,10 +57,15 @@ class VertxRegisterImpl extends VertxHandler {
 			throw new RuntimeException("handler class incorrect - " + e.getClass().getCanonicalName() + ' ' + e.localizedMessage, e)
 		}
 		
-		handler.callFunctionHandlers.put(functionName, handlerInstance)
+		if(appHandlers == null) {
+			appHandlers = Collections.synchronizedMap([:])
+			handler.appFunctionHandlers.put(appID, appHandlers)
+		}
+		
+		appHandlers.put(functionName, handlerInstance)
 		
 		ResultList rl = new ResultList()
-		rl.setStatus(VitalStatus.withOKMessage("function registered: ${functionName} -> ${handlerClass}"))
+		rl.setStatus(VitalStatus.withOKMessage("function registered: ${functionName} -> ${handlerClass}, appID: ${appID}"))
 				
 		return rl;
 	}

@@ -4,6 +4,7 @@ import java.util.Map
 
 import ai.vital.service.vertx.handler.AbstractVitalServiceHandler;
 import ai.vital.service.vertx.handler.CallFunctionHandler;
+import ai.vital.service.vertx.handler.ICallFunctionHandler;
 import ai.vital.vitalservice.VitalStatus;
 import ai.vital.vitalservice.exception.VitalServiceException;
 import ai.vital.vitalservice.exception.VitalServiceUnimplementedException;
@@ -24,17 +25,31 @@ class VertxUnregisterImpl extends VertxHandler {
 			throws VitalServiceUnimplementedException, VitalServiceException {
 
 		String functionName = getRequiredStringParam('functionName', params)
-		
-		if( CallFunctionHandler.allHandlers.contains( functionName ) )
+				
+		if( CallFunctionHandler.allHandlers.contains( functionName ) ) {
 			throw new Exception("Function name is forbidden: ${functionName}" )
-
-		CallFunctionHandler handlerInstance = handler.callFunctionHandlers.remove(functionName)
+		}
+		
+		if(app == null) throw new Exception("Only app handlers may unregistered")
+		
+		String appID = app.appID?.toString()
+		
+		if(!appID) throw new Exception("No appID param")
+		
+		CallFunctionHandler handlerInstance = null
+		
+		Map<String, ICallFunctionHandler> appMap = handler.appFunctionHandlers.get(appID)
+		
+		if(appMap != null) {
+			
+			handlerInstance = appMap.remove(functionName)
+		}
 		
 		if(handlerInstance == null) throw new RuntimeException("No handler for function name: ${functionName}")
 				
 		ResultList rl = new ResultList()
 		
-		rl.setStatus(VitalStatus.withOKMessage("function unregistered: ${functionName} -> ${handlerInstance.getClass().canonicalName}"))
+		rl.setStatus(VitalStatus.withOKMessage("function unregistered: ${functionName} -> ${handlerInstance.getClass().canonicalName}, appID: ${appID}"))
 				
 		return rl;
 	}

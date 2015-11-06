@@ -5,6 +5,7 @@ import java.util.Map.Entry
 
 import ai.vital.service.vertx.handler.AbstractVitalServiceHandler;
 import ai.vital.service.vertx.handler.CallFunctionHandler
+import ai.vital.service.vertx.handler.ICallFunctionHandler
 import ai.vital.vitalservice.exception.VitalServiceException;
 import ai.vital.vitalservice.exception.VitalServiceUnimplementedException;
 import ai.vital.vitalservice.query.ResultElement
@@ -27,7 +28,7 @@ class VertxListHandlersImpl extends VertxHandler {
 				
 		ResultList rl = new ResultList()
 		int i = 0
-		for(Entry<String, CallFunctionHandler> entry : new HashSet(handler.callFunctionHandlers.entrySet())) {
+		for(Entry<String, ICallFunctionHandler> entry : new HashSet(handler.commonFunctionHandlers.entrySet())) {
 					
 			VITAL_Node handlerNode = new VITAL_Node()
 			handlerNode.URI = 'urn:' + entry.getKey()
@@ -36,6 +37,29 @@ class VertxListHandlersImpl extends VertxHandler {
 			
 			rl.getResults().add(new ResultElement(handlerNode, 1D))
 					
+		}
+		
+		for(Entry<String, Map<String, ICallFunctionHandler>> e : handler.appFunctionHandlers.entrySet() ) {
+			
+			String appID = e.getKey();
+			
+			if(app == null || app.appID.toString().equals(appID)) {
+				
+				for(Entry<String, ICallFunctionHandler> entry : e.getValue()) {
+					
+					VITAL_Node handlerNode = new VITAL_Node()
+					handlerNode.URI = 'urn:' + appID + ':' + entry.getKey()
+					handlerNode.name = entry.getValue().getClass().getCanonicalName()
+					
+					i++
+					
+					rl.getResults().add(new ResultElement(handlerNode, 1D))
+					
+				}
+				
+				
+			}
+			
 		}
 	
 		rl.setTotalResults(i)

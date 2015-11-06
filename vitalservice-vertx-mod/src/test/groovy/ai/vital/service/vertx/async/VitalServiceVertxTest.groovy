@@ -14,6 +14,7 @@ import ai.vital.vitalservice.exception.VitalServiceException;
 import ai.vital.vitalservice.exception.VitalServiceUnimplementedException;
 import ai.vital.vitalservice.query.ResultList;
 import ai.vital.vitalsigns.model.VITAL_Node
+import ai.vital.vitalsigns.model.VitalApp;
 
 class VitalServiceVertxTest extends AbstractVitalServiceVertxTest {
 
@@ -28,7 +29,7 @@ class VitalServiceVertxTest extends AbstractVitalServiceVertxTest {
 		
 		super.setUp();
 		
-		asyncClient = new VitalServiceAsyncClient(ltp.vertx)
+		asyncClient = new VitalServiceAsyncClient(ltp.vertx, VitalApp.withId('app'))
 		 
 	}
 	

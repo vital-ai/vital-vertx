@@ -1,8 +1,6 @@
 package ai.vital.auth.queries
 
 
-import org.junit.After;
-
 import ai.vital.domain.CredentialsLogin;
 import ai.vital.domain.CredentialsLogin_PropertiesHelper;
 import ai.vital.domain.UserSession;

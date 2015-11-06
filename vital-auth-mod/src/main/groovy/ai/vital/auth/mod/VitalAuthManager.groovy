@@ -2,13 +2,20 @@ package ai.vital.auth.mod
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry
 
 import org.githubusercontent.defuse.passwordhash.PasswordHash;
+import org.vertx.groovy.core.Vertx;
 import org.vertx.groovy.core.eventbus.EventBus
 import org.vertx.groovy.platform.Verticle
 import org.vertx.groovy.core.eventbus.Message;
 import org.vertx.java.core.Future;
 
+import ai.vital.auth.handlers.VitalAuthoriseHandler;
+import ai.vital.auth.handlers.VitalLoginHandler;
+import ai.vital.auth.handlers.VitalLogoutHandler;
+import ai.vital.auth.mod.AppFilter.Auth;
+import ai.vital.auth.mod.AppFilter.Rule
 import ai.vital.auth.queries.Queries;
 import ai.vital.domain.CredentialsLogin;
 import ai.vital.domain.Login;
@@ -18,6 +25,8 @@ import ai.vital.domain.UserSession;
 import ai.vital.service.vertx.VitalServiceMod;
 import ai.vital.service.vertx.async.VitalServiceAsyncClient;
 import ai.vital.service.vertx.binary.ResponseMessage;
+import ai.vital.service.vertx.handler.AbstractVitalServiceHandler;
+import ai.vital.vitalservice.VitalService
 import ai.vital.vitalservice.VitalStatus;
 import ai.vital.vitalservice.json.VitalServiceJSONMapper;
 import ai.vital.vitalservice.query.ResultList;
@@ -25,6 +34,7 @@ import ai.vital.vitalservice.query.VitalSelectQuery
 import ai.vital.vitalsigns.VitalSigns;
 import ai.vital.vitalsigns.meta.GraphContext;
 import ai.vital.vitalsigns.model.GraphObject
+import ai.vital.vitalsigns.model.VitalApp;
 import ai.vital.vitalsigns.model.VitalSegment
 import ai.vital.vitalsigns.model.property.URIProperty;
 
@@ -37,6 +47,10 @@ class VitalAuthManager extends Verticle {
 	public final static String error_no_password = 'error_no_password'
 	
 	public final static String error_no_type = 'error_no_type'
+	
+	public final static String error_no_appid = 'error_no_appid'
+	
+	public final static String error_app_not_found = 'error_app_not_found'
 	
 	public final static String error_unknown_type = 'error_unknown_type'
 	
@@ -63,45 +77,217 @@ class VitalAuthManager extends Verticle {
 	public final static String error_invalid_session_string = 'error_invalid_session_string'
 	 
 	
+	public final static String function_login = 'vitalauth.login'
+	
+	public final static String function_logout = 'vitalauth.logout'
+	
+	public final static String function_authorise = 'vitalauth.authorise'
+	
 	
 	public final static String address_login     = "vitalauth.login"
-	
+//	
 	public final static String address_logout    = "vitalauth.logout"
-	
+//	
 	public final static String address_authorise = "vitalauth.authorise"
 	
 
-	//keep each map separate ?	
-	// sessionID -> login URI
-	protected Map<String, String> sessions = null
-	// login URI 2 active logins
-	protected Map<String, List<LoginInfo>> logins = null
-
 	protected static final long DEFAULT_SESSION_TIMEOUT = 30 * 60 * 1000;
 	
-	protected static final long DEFAULT_ADMIN_SESSION_TIMEOUT = 0;
 	
-	protected static final long DEFAULT_SUPER_ADMIN_SESSION_TIMEOUT = 0;
+	static class AuthAppBean {
+		
+		boolean authEnabled = false
+		
+		//keep each map separate ?	
+		// sessionID -> login URI
+		protected Map<String, String> sessions = null
+		// login URI 2 active logins
+		protected Map<String, List<LoginInfo>> logins = null
+		
+		protected long sessionTimeout;
+		
+		protected long adminSessionTimeout;
+		
+		protected long superAdminSessionTimeout;
+		
+		protected VitalSegment loginsSegment = null
+				
+		protected VitalSegment adminLoginsSegment = null
+				
+		protected VitalSegment superAdminLoginsSegment = null
+		
+		protected VitalSegment sessionsSegment = null		
+		
+		protected int maxSessionsPerUser = 1 
+				
+		protected Boolean persistentSessions = null
+				
+		protected Integer expirationProlongMargin = null
+				
+		protected VitalServiceAsyncClient vitalService = null
+		
+		protected VitalService vitalServiceSync = null
+		
+		protected String appID		
 
-	protected long sessionTimeout;
-	
-	protected long adminSessionTimeout;
-	
-	protected long superAdminSessionTimeout;
+		protected VitalApp app
+		
+		protected AppFilter filter
+		
+		protected Vertx vertx		
+		
+		protected String authorizeAddress
+		
+		protected void _initService(Vertx vertx) {
+			
+			this.vertx = vertx
+			
+			vitalServiceSync = VitalServiceMod.registeredServices.get(appID)
+			if(vitalServiceSync == null) throw new RuntimeException("AppID: ${appID} service instance not registered")
+			
+			vitalService = new VitalServiceAsyncClient(vertx, VitalApp.withId(appID))
+			
+			app = vitalServiceSync.getApp()
+			
+			
+		}
+		
+		protected VitalSegment _getSegment(String segmentID) {
+			return vitalServiceSync.getSegment(segmentID)
+		}
+		
+		protected boolean _supportsNormal() { return true }
+		
+		protected boolean _supportsAdmin() { return false }
+		
+		protected boolean _supportsSuperAdmin() { return false }
+		
+		
+		protected void _executeSelectQuery(VitalSelectQuery selectQuery, Closure closure) {
+		
+			vitalService.query(selectQuery, closure)
+				
+		}
+		
+		protected void _generateURI(Class<? extends GraphObject> clazz, Closure closure) {
+			
+			vitalService.generateURI(clazz, closure)
+			
+		}
+		
+		protected void _save(VitalSegment targetSegment, List<GraphObject> objects, Closure closure) {
+			
+			vitalService.save(targetSegment, objects, true, closure)
+			
+		}
+		
+		protected void _delete(List<URIProperty> uris, Closure closure) {
+			
+			vitalService.delete(uris, closure)
+			
+		}
+		
+		protected void _getRemoteObject(String uri, Closure closure) {
+			
+			vitalService.get(GraphContext.ServiceWide, URIProperty.withString(uri), true, closure)
+			
+		}
+		
+		protected void _callFunction(String fname, Map<String, Object> params, Closure closure) {
+			
+			vitalService.callFunction(fname, params, closure)
+			
+		}
+		
+		protected VitalSegment _getTargetSegment() {
+			return loginsSegment
+		}
+		
+		protected void _passMessage(Message msg) {
+			
+			vertx.eventBus.send(vitalService.address, msg.body()) { Message response ->
+				
+				msg.reply(response.body())
+				
+			}
+			
+//			msg.setMetaClass(
+//			vitalService.address
+			
+		}
+		
+		protected final void checkSegments() {
+			
+			if(loginsSegment != null) {
+				String sid = loginsSegment.segmentID.toString()
+				loginsSegment = _getSegment(sid)
+				if(loginsSegment == null) throw new RuntimeException("AppID: ${appID} Logins segment not found: ${sid}")
+				
+			}
+			
+			if(adminLoginsSegment != null) {
+				String sid = adminLoginsSegment.segmentID.toString()
+				adminLoginsSegment = _getSegment(sid)
+				if(adminLoginsSegment == null) throw new RuntimeException("AppID: ${appID} Admin Logins segment not found: ${sid}")
+			}
+			
+			if(superAdminLoginsSegment != null) {
+				String sid = superAdminLoginsSegment.segmentID.toString()
+				superAdminLoginsSegment = _getSegment(sid)
+				if(superAdminLoginsSegment == null) throw new RuntimeException("AppID: ${appID} SuperAdmin Logins segment not found: ${sid}")
+			}
+			
+			if(sessionsSegment != null) {
+				String sid = sessionsSegment.segmentID.toString()
+				sessionsSegment = _getSegment(sid)
+				if(sessionsSegment == null) throw new RuntimeException("AppID: ${appID} sessions segment not found: ${sid}")
+				
+			}
+		}
+		
+		protected VitalSegment getLoginsSegment(Message message) {
+			
+			Map body = message.body()
+			
+			String type = body.get('type');
+			
+			if(type == Login.class.simpleName) {
+				
+				return loginsSegment
+				
+			} else if(type == AdminLogin.class.simpleName) {
+			
+				if(!_supportsAdmin()) {
+					message.reply([status: error_unknown_type, message: 'Unsupported type: ' + type])
+					return
+				}
+			
+				return adminLoginsSegment
+			
+			} else if(type == SuperAdminLogin.class.simpleName) {
 
-	protected VitalSegment loginsSegment = null
+				if(!_supportsSuperAdmin()) {
+					message.reply([status: error_unknown_type, message: 'Unsupported type: ' + type])
+					return
+				}
+				
+				return superAdminLoginsSegment
+			
+			} else {
+				message.reply([status: error_unknown_type, message: 'Unknown type: ' + type])
+				return
+			}
+			
+		}
+		
+	}
 	
-	protected VitalSegment adminLoginsSegment = null
+	static Map<String, AuthAppBean> beans = [:]
 	
-	protected VitalSegment superAdminLoginsSegment = null
-  
-	protected int maxSessionsPerUser = 1 
+	protected static boolean initialized = false
 	
-	protected Boolean persistentSessions = null
+	List<String> beansToCheck = null
 	
-	protected Integer expirationProlongMargin = null
-	
-	protected VitalServiceAsyncClient vitalService = null
 	
 	private static final class LoginInfo {
 		final long timerID;
@@ -121,128 +307,237 @@ class VitalAuthManager extends Verticle {
 	 */
 	public Object start(Future<Void> startedResult) {
 
-		doStart()
-
-		persistentSessions = container.getConfig().get('persistentSessions')
-		container.logger.info "Persistent sessions: ${persistentSessions}"
-		if(persistentSessions == null) {
-			throw new RuntimeException("No persistentSessions param.")	
-		}
-		
-		
-		Integer maxSessionsPerUserParam = container.getConfig().get("maxSessionsPerUser")
-		
-		if(maxSessionsPerUserParam != null) {
-			maxSessionsPerUser = maxSessionsPerUserParam.intValue() 
-		}
-		
-		container.logger.info("Max sessions per user: ${maxSessionsPerUser}")
-		if(!persistentSessions) {
-		
-			sessions = new HashMap<>();
+		synchronized(VitalAuthManager.class) {
 			
-			logins = new HashMap<>();
-				
-		}
-		
-				
-		Object timeout = container.getConfig().get('session_timeout')
-
-		if (timeout != null) {
-			if (timeout instanceof Long) {
-				this.sessionTimeout = (Long)timeout;
-			} else if (timeout instanceof Integer) {
-				this.sessionTimeout = (Integer)timeout;
-			}
-		} else {
-			this.sessionTimeout = DEFAULT_SESSION_TIMEOUT;
-		}
-
-		println "Session Timeout: ${this.sessionTimeout}"
-		
-		
-		Object adminTimeout = container.getConfig().get('admin_session_timeout')
-		if(adminTimeout != null) {
-			if(adminTimeout instanceof Long) {
-				this.adminSessionTimeout = (Long) adminTimeout;
-			} else if(timeout instanceof Integer) {
-				this.adminSessionTimeout = ((Integer)adminTimeout).longValue()
-			}
-		} else {
-			this.adminSessionTimeout = DEFAULT_ADMIN_SESSION_TIMEOUT
-		}
-		
-		println "Admin Session Timeout: ${this.adminSessionTimeout}"
-
-		
-		Object superAdminTimeout = container.getConfig().get('super_admin_session_timeout')
-		if(superAdminTimeout != null) {
-			if(superAdminTimeout instanceof Long) {
-				this.superAdminSessionTimeout = (Long) superAdminTimeout;
-			} else if(timeout instanceof Integer) {
-				this.superAdminSessionTimeout = ((Integer)superAdminTimeout).longValue()
-			}
-		} else {
-			this.superAdminSessionTimeout = DEFAULT_SUPER_ADMIN_SESSION_TIMEOUT
-		}
-		
-		println "Super Admin Session Timeout: ${this.superAdminSessionTimeout}"
-		
-		
-		expirationProlongMargin = container.getConfig().get('expirationProlongMargin')
-		if(expirationProlongMargin == null) {
-			throw new RuntimeException("No expirationProlongMargin param")
-		}		
-		
-		if(timeout > 0 && expirationProlongMargin >= timeout) {
-			throw new RuntimeException("expiration prolong margin cannot be greater than timeout")
-		}
-		
-		initService() { Throwable exception ->
-			
-			if(exception != null) { 
-				startedResult.setFailure(exception)
-				return
-			}
-			
-			checkSegments(startedResult) { ->
-			
-				EventBus eb = vertx.eventBus
-				
-				eb.registerHandler(getAddress_login()) { Message message ->
-				doLogin(message);
-				}
-				
-				eb.registerHandler(getAddress_logout()) { Message message ->
-				doLogout(message);
-				}
-				
-				eb.registerHandler(getAddress_authorise()) { Message message ->
-				doAuthorise(message);
-				}
-				
+			if(initialized) {
 				startedResult.setResult(new Object())
-			
+				return startedResult
 			}
+			
+			initialized = true
 			
 		}
 		
 		
+		Object appsMapO = container.getConfig().get('apps')
+		if(appsMapO == null) throw new RuntimeException("No 'apps' map param")
+		if(!(appsMapO instanceof Map)) throw new RuntimeException("'apps' param must be a map")
+		
+		Map<String, Object> appsMap = appsMapO
+		
+		if(appsMap.size() == 0) throw new RuntimeException("Apps map must not be empty")
+		
+		for(Entry<String, Object> e : appsMap.entrySet()) {
+			
+			
+			String appID = e.getKey()
+			
+			
+			container.logger.info("Setting up app: ${appID}")
+			
+			Object cfgO = e.getValue()
+			if(!(cfgO instanceof Map)) throw new RuntimeException("App ${appID} config must be a map")
+			
+			Map<String, Object> appCfg = cfgO
+			String access = appCfg.get('access')
+			
+			if(!access) throw new RuntimeException("App ${appID} must provide 'access' param")
+			
+			AuthAppBean bean = createBean(access)
+			bean.authorizeAddress = getAddress_authorise()
+			bean.appID = appID
+			
+			container.logger.info("App: ${appID} access: ${access}")
+			
+			
+			Boolean authEnabled = appCfg.get('auth_enabled')
+			if(authEnabled == null) throw new RuntimeException("No auth_enabled boolean param")
+			
+			bean.authEnabled = authEnabled
+			
+			//
+			if(authEnabled) {
+				
+				if(access == 'service') {
+					
+					if(!bean._supportsNormal()) throw new RuntimeException("This module does not support regular login mode");
+					
+					String loginsSegmentParam = appCfg.get('loginsSegment')
+							if(!loginsSegmentParam) throw new RuntimeException("App ${appID} must provide logins segment")
+					
+					bean.loginsSegment = VitalSegment.withId(loginsSegmentParam)
+					
+					
+				} else if(access == 'admin') {
+					
+					if(!bean._supportsAdmin()) throw new RuntimeException("This module does not support admin mode");
+					
+					String adminLoginsSegmentParam = appCfg.get('adminLoginsSegment')
+							if(!adminLoginsSegmentParam) throw new RuntimeException("App ${appID} must provide admin logins segment")
+					
+					bean.adminLoginsSegment = VitalSegment.withId(adminLoginsSegmentParam)
+					
+				} else if(access == 'superadmin') {
+					
+					if(!bean._supportsSuperAdmin()) throw new RuntimeException("This module does not support super admin mode");
+					
+					throw new RuntimeException("TODO! superadmin auth module support")	
+					
+				} else {
+					
+					throw new RuntimeException("Unknown service access level: ${access}")
+					
+				}
+				
+				bean.persistentSessions = appCfg.get('persistentSessions')
+						
+						if(bean.persistentSessions == null) {
+							throw new RuntimeException("App ${appID}: No persistentSessions param.")
+						}
+				container.logger.info "App: ${appID} persistent sessions: ${bean.persistentSessions}"
+				
+				
+				Integer maxSessionsPerUserParam = appCfg.get("maxSessionsPerUser")
+				
+				if(maxSessionsPerUserParam != null) {
+					bean.maxSessionsPerUser = maxSessionsPerUserParam.intValue()
+				}
+				container.logger.info("App: ${appID} max sessions per user: ${bean.maxSessionsPerUser}")
+				
+				
+				String sessionsSegment = appCfg.get('sessionsSegment')
+				
+				if(!bean.persistentSessions) {
+					
+					bean.sessions = new HashMap<>();
+					
+					bean.logins = new HashMap<>();
+					
+				} else {
+					
+					if(!sessionsSegment) throw new RuntimeException("App: ${appID} no sessionsSegment param, required when persistent sessions = true")
+					
+					bean.sessionsSegment = VitalSegment.withId(sessionsSegment)
+					
+				}
+				
+				
+				Object timeout = appCfg.get('session_timeout')
+						
+						if (timeout != null) {
+							if (timeout instanceof Long) {
+								bean.sessionTimeout = (Long)timeout;
+							} else if (timeout instanceof Integer) {
+								bean.sessionTimeout = (Integer)timeout;
+							}
+						} else {
+							bean.sessionTimeout = DEFAULT_SESSION_TIMEOUT;
+						}
+				
+				container.logger.info "App: ${appID} session Timeout: ${bean.sessionTimeout}"
+				
+				
+				Object expirationProlongMargin = appCfg.get('expirationProlongMargin')
+				if(expirationProlongMargin == null) {
+					throw new RuntimeException("App: ${appID} No expirationProlongMargin param")
+				}
+				bean.expirationProlongMargin = expirationProlongMargin
+						container.logger.info("App: ${appID} expirationProlongMargin: ${bean.expirationProlongMargin}")
+						
+				if(timeout > 0 && expirationProlongMargin >= timeout) {
+					throw new RuntimeException("expiration prolong margin cannot be greater than timeout")
+				}
+				
+			}
+			
+			
+			
+			
+			
+			//filter is a list of rules
+			Object filterO = appCfg.get('filter')
+			if(filterO == null) {
+				throw new RuntimeException("App: ${appID} no filter list defined")
+			}
+			
+			AppFilter filter = AppFilter.fromJsonList(filterO)
+			
+			bean.filter = filter
+			
+			if(!authEnabled.booleanValue()) {
+				
+				for(Rule r : filter.rules) {
+				
+					if(r instanceof Auth) {
+						
+						throw new RuntimeException("Cannot use Auth rules in an app without authentication enabled")
+						
+					}
+						
+				}
+				
+			}
+			
+			
+			bean._initService(vertx)
+			
+			bean.checkSegments()
+			
+			beans.put(appID, bean)
+			
+//			#depending on the access type the proper segment is necessary, service/admin/superadmin
+//			access: service
+//		  
+//			loginsSegment: logins
+//			
+//			persistentSessions: true
+//			
+//			maxSessionsPerUser: 3
+//			
+//			expirationProlongMargin: 10000
+			
+		}
+		
+		
+//		doStart()
+		
+		
+		
+		
+
+
+
+		EventBus eb = vertx.eventBus
+		
+		eb.registerHandler(getAddress_login()) { Message message ->
+			doLogin(message);
+		}
+		
+		eb.registerHandler(getAddress_logout()) { Message message ->
+			doLogout(message);
+		}
+		
+		eb.registerHandler(getAddress_authorise()) { Message message ->
+			doAuthorise(message);
+		}
+		
+		startedResult.setResult(new Object())
+	
+		VitalJSEndpointsManager manager = new VitalJSEndpointsManager(this)
+		
+		//register the handler directly
+		AbstractVitalServiceHandler.commonFunctionHandlers.put(VitalAuthoriseHandler.function_authorise, new VitalAuthoriseHandler([authoriseAddress: getAddress_authorise()]))
+		AbstractVitalServiceHandler.commonFunctionHandlers.put(VitalLoginHandler.function_login, new VitalLoginHandler([loginAddress: getAddress_login()]))
+		AbstractVitalServiceHandler.commonFunctionHandlers.put(VitalLogoutHandler.function_logout, new VitalLogoutHandler([logoutAddress: getAddress_logout()]))
+		
+		manager.deployEndpoints()
+		
+		return new Object()
 		
 	}
 	
 	
 	/*
-	 * callback(Throwable t) 
-	 */
-	protected void initService(Closure callback) {
-		
-		vitalService = new VitalServiceAsyncClient(vertx)
-		
-		callback(null)
-			
-	}
-	
 	protected void doStart() {
 		
 		 String loginsSegmentString = container.getConfig().get("loginsSegment")
@@ -274,96 +569,8 @@ class VitalAuthManager extends Verticle {
 		 }
 		 
 	}
+	*/
 	
-	protected void checkSegments(Future<Void> future, Closure onSegmentsChecked) {
-		
-		if(loginsSegment != null) {
-			
-			String segmentID = loginsSegment.segmentID.toString()
-			
-			getSegment(segmentID) { ResponseMessage rm ->
-				
-				if(rm.exceptionMessage) {
-					future.setFailure(new RuntimeException("Error when checking logins segment: " + rm.exceptionType + " - " + rm.exceptionMessage))
-					return
-				}
-				
-				loginsSegment = rm.response
-		
-				if(loginsSegment == null) {
-					future.setFailure(new RuntimeException("Logins segment not found: " + segmentID))
-					return
-				}
-				
-				onLoginSegmentChecked(future, onSegmentsChecked)		
-			}
-			
-		} else {
-			onLoginSegmentChecked(future, onSegmentsChecked)
-		}
-		
-	}
-	
-	protected void onLoginSegmentChecked(Future<Void> future, Closure onSegmentsChecked) {
-		
-		if(adminLoginsSegment != null) {
-			
-			String segmentID = adminLoginsSegment.segmentID.toString()
-			
-			getSegment(segmentID) { ResponseMessage rm ->
-				
-				if(rm.exceptionMessage) {
-					future.setFailure(new RuntimeException("Error when checking admin logins segment: " + rm.exceptionType + " - " + rm.exceptionMessage))
-					return
-				}
-				
-				adminLoginsSegment = rm.response
-				
-				if(adminLoginsSegment == null) {
-					future.setFailure(new RuntimeException("Admin logins segment not found: " + segmentID))
-					return
-				}
-				
-				onAdminLoginSegmentChecked(future, onSegmentsChecked)
-				
-			}
-			
-		} else {
-		
-			onAdminLoginSegmentChecked(future, onSegmentsChecked)
-		
-		}
-		
-	}
-	
-	protected void onAdminLoginSegmentChecked(Future<Void> future, Closure onSegmentsChecked) {
-	
-		if(superAdminLoginsSegment != null) {
-			
-			String segmentID = superAdminLoginsSegment.segmentID.toString()
-			
-			getSegment(segmentID) { ResponseMessage rm ->
-				
-				if(rm.exceptionMessage) {
-					future.setFailure(new RuntimeException("Error when checking super admin logins segment: " + rm.exceptionType + " - " + rm.exceptionMessage))
-					return
-				}
-				
-				superAdminLoginsSegment = rm.response
-				
-				if(superAdminLoginsSegment == null) {
-					future.setFailure(new RuntimeException("Super admin logins segment not found: " + segmentID))
-					return
-				}
-
-				onSegmentsChecked();
-								
-			} 
-			
-		} else {
-			onSegmentsChecked();
-		}
-	}
 	
 	protected String getAddress_login() {
 		return address_login
@@ -377,74 +584,14 @@ class VitalAuthManager extends Verticle {
 		return address_authorise
 	}
 	
-	protected VitalSegment getLoginsSegment(Message message) {
-		
-		Map body = message.body()
-		
-		String type = body.get('type');
-		
-		if(type == Login.class.simpleName) {
-			
-			return loginsSegment
-			
-		} else if(type == AdminLogin.class.simpleName) {
-		
-			return adminLoginsSegment
-		
-		} else if(type == SuperAdminLogin.class.simpleName) {
-
-			return superAdminLoginsSegment		
-		
-		} else {
-			message.reply([status: error_unknown_type, message: 'Unknown type: ' + type])
-			return
-		}
-		
-	}
-	
-	protected VitalSegment getSessionsSegment(Message message) {
-		return getLoginsSegment(message)
-	}
-	
 	
 	protected boolean validateOtherFields(Message message) {
 		return true
 	}
 	
-	protected void getSegment(String segmentID, Closure closure) {
-		
-		vitalService.getSegment(segmentID, closure)
-		
-	}
-	
-	protected void executeSelectQuery(VitalSelectQuery selectQuery, Closure closure) {
-	
-		vitalService.query(selectQuery, closure)
-			
-	}
-	
-	protected void generateURI(Class<? extends GraphObject> clazz, Closure closure) {
-		
-		vitalService.generateURI(clazz, closure)
-		
-	}
-	
-	protected void save(VitalSegment targetSegment, List<GraphObject> objects, Closure closure) {
-		
-		vitalService.save(targetSegment, objects, true, closure)
-		
-	}
-	
-	protected delete(List<URIProperty> uris, Closure closure) {
-		
-		vitalService.delete(uris, closure)
-		
-	}
-	
-	protected getRemoteObject(String uri, Closure closure) {
-		
-		vitalService.get(GraphContext.ServiceWide, URIProperty.withString(uri), true, closure) 
-		
+	protected AuthAppBean createBean(String access) {
+		if(access == 'service') return new AuthAppBean()
+		throw new RuntimeException("Unsupported access: ${access}")
 	}
 	
 	protected void doLogin(Message message) {
@@ -453,8 +600,15 @@ class VitalAuthManager extends Verticle {
 
 		String type = body.get('type')
 		
+		String appID = body.get('appID')
+		
 		if(!type) {
 			message.reply([status: error_no_type, message: 'No type parameter'])
+			return
+		}
+		
+		if(!appID) {
+			message.reply([status: error_no_appid, message: 'No appID parameter'])
 			return
 		}
 		
@@ -470,18 +624,39 @@ class VitalAuthManager extends Verticle {
 			return
 		}
 		
+		AuthAppBean bean = beans.get(appID)
+		if(bean == null) {
+			message.reply([status: error_app_not_found, message: "App does not support authentication"])
+			return
+		}
+		
 		Class cls = null
 		
 		
 		if(type == Login.class.simpleName) {
 			
+			if(!bean._supportsNormal()) {
+				message.reply([status: error_unknown_type, message: "This app does not support service logins"])
+				return
+			}
+			
 			cls = Login.class
 			
 		} else if(type == AdminLogin.class.simpleName) {
 		
+			if(!bean._supportsAdmin()) {
+				message.reply([status: error_unknown_type, message: "This app does not support admin logins"])
+				return
+			}
+		
 			cls = AdminLogin.class
 		
 		} else if(type == SuperAdminLogin.class.simpleName) {
+		
+			if(!bean._supportsSuperAdmin()) {
+				message.reply([status: error_unknown_type, message: "This app does not support super admin logins"])
+				return
+			}
 		
 			cls = SuperAdminLogin.class
 		
@@ -492,11 +667,8 @@ class VitalAuthManager extends Verticle {
 		
 		if(!validateOtherFields(message)) return;
 		
-		VitalSegment loginsSegment = getLoginsSegment(message)
+		VitalSegment loginsSegment = bean._getTargetSegment()
 		if(loginsSegment == null) return
-		
-		VitalSegment sessionsSegment = getSessionsSegment(message)
-		if(sessionsSegment == null) return
 		
 //		if(segment == null) {
 //			message.reply([status: error_unsupported_type, message: (String) "login type: ${type} unsupported"])
@@ -504,11 +676,11 @@ class VitalAuthManager extends Verticle {
 //		}
 
 		
-		final long _timeoutValue = getTimeoutValue(type)
+		final long _timeoutValue = bean.sessionTimeout
 		
 		VitalSelectQuery selectQuery = Queries.selectTypedLoginQuery(cls, loginsSegment, username)
 
-		executeSelectQuery(selectQuery) { ResponseMessage selectQueryReply ->
+		bean._executeSelectQuery(selectQuery) { ResponseMessage selectQueryReply ->
 
 			if( selectQueryReply.exceptionMessage ) {
 				message.reply([status: error_vital_service, message: 'VitalService error: ' + selectQueryReply.exceptionType + ' - ' + selectQueryReply.exceptionMessage])
@@ -545,22 +717,22 @@ class VitalAuthManager extends Verticle {
 			
 			if(login instanceof Login) {
 				Login l = login
-				if( l.emailVerified == null || l.emailVerified == false ) {
+				if( l.emailVerified == null || l.emailVerified.booleanValue() == false ) {
 					message.reply([status: error_email_unverified, message: (String) "The email ${username} is not verified, cannot log in"])
 					return
 				}
-				if( l.active != null && l.active == false ) {
+				if( l.active != null && l.active.booleanValue() == false ) {
 					message.reply([status: error_login_inactive, message: (String) "The login is no longer active"])
 					return
 				}
 			}
 			
-			if(persistentSessions) {
+			if(bean.persistentSessions) {
 				
 				def onSessionsCountChecked = {
 					
 					
-					generateURI(UserSession.class) { ResponseMessage generateReply ->
+					bean._generateURI(UserSession.class) { ResponseMessage generateReply ->
 
 						if (generateReply.exceptionMessage) {
 							message.reply([status: error_vital_service, message: 'VitalService error: ' + generateReply.exceptionType + ' - ' + generateReply.exceptionMessage])
@@ -581,7 +753,7 @@ class VitalAuthManager extends Verticle {
 						session.loginURI = new URIProperty(login.URI)
 						session.sessionID = type + '_' + UUID.randomUUID().toString()
 						
-						save(sessionsSegment, [session]) { ResponseMessage saveSessionReply ->
+						bean._save(bean.sessionsSegment, [session]) { ResponseMessage saveSessionReply ->
 							
 							if (saveSessionReply.exceptionMessage) {
 								message.reply([status: error_vital_service, message: 'VitalService error: ' + saveSessionReply.exceptionType + ' - ' + saveSessionReply.exceptionMessage])
@@ -600,11 +772,11 @@ class VitalAuthManager extends Verticle {
 				};
 				
 				//if max session per user reached select existing sessions to see if not exceeded
-				if(maxSessionsPerUser > 0) {
+				if(bean.maxSessionsPerUser > 0) {
 					
-					VitalSelectQuery currentSessionsQuery = Queries.getSessions(sessionsSegment, login.URI, maxSessionsPerUser * 10)
+					VitalSelectQuery currentSessionsQuery = Queries.getSessions(bean.sessionsSegment, login.URI, bean.maxSessionsPerUser * 10)
 
-					executeSelectQuery(currentSessionsQuery) { ResponseMessage currentSessionsReply ->
+					bean._executeSelectQuery(currentSessionsQuery) { ResponseMessage currentSessionsReply ->
 						
 						if (currentSessionsReply.exceptionMessage) {
 							message.reply([status: error_vital_service, message: 'VitalService error: ' + currentSessionsReply.exceptionType + ' - ' + currentSessionsReply.exceptionMessage])
@@ -618,7 +790,7 @@ class VitalAuthManager extends Verticle {
 							return
 						}
 
-						if(sessionsRL.results.size() >= maxSessionsPerUser) {
+						if(sessionsRL.results.size() >= bean.maxSessionsPerUser) {
 							
 							List<UserSession> sessions = []
 							for(GraphObject g : sessionsRL) {
@@ -628,11 +800,11 @@ class VitalAuthManager extends Verticle {
 							sessions.sort { UserSession s1, UserSession s2 ->
 								
 								//expiration date is more important
-								Date d1 = s1.expirationDate
-								Date d2 = s2.expirationDate
+								Date d1 = s1.expirationDate?.getDate()
+								Date d2 = s2.expirationDate?.getDate()
 								
-								if(d1 == null) d1 = s1.timestamp != null ? new Date(s1.timestamp) : new Date(0L)
-								if(d2 == null) d2 = s2.timestamp != null ? new Date(s2.timestamp) : new Date(0L)
+								if(d1 == null) d1 = s1.timestamp != null ? new Date(s1.timestamp.longValue()) : new Date(0L)
+								if(d2 == null) d2 = s2.timestamp != null ? new Date(s2.timestamp.longValue()) : new Date(0L)
 								
 								return d2.compareTo(d1)
 								
@@ -640,13 +812,13 @@ class VitalAuthManager extends Verticle {
 							
 							List<URIProperty> sessionsToRemove = []
 							
-							for(int i = maxSessionsPerUser-1; i < sessions.size(); i++) {
+							for(int i = bean.maxSessionsPerUser-1; i < sessions.size(); i++) {
 								sessionsToRemove.add(URIProperty.withString(sessions.get(i).URI))
 							}
 							
 							//delete old sessions
 
-							delete(sessionsToRemove) { ResponseMessage deleteSessionsReply ->
+							bean._delete(sessionsToRemove) { ResponseMessage deleteSessionsReply ->
 								if (deleteSessionsReply.exceptionMessage) {
 									message.reply([status: error_vital_service, message: 'VitalService error: ' + deleteSessionsReply.exceptionType + ' - ' + deleteSessionsReply.exceptionMessage])
 									return
@@ -669,9 +841,9 @@ class VitalAuthManager extends Verticle {
 				
 			} else {
 			
-				List<LoginInfo> info = logins.get(login.URI)
+				List<LoginInfo> info = bean.logins.get(login.URI)
 				if(info != null) {
-					if(maxSessionsPerUser > 0 && info.size() > maxSessionsPerUser - 1) {
+					if(bean.maxSessionsPerUser > 0 && info.size() > bean.maxSessionsPerUser - 1) {
 								
 						//sort the list 
 						List<LoginInfo> infos = new ArrayList<LoginInfo>(info)
@@ -679,10 +851,10 @@ class VitalAuthManager extends Verticle {
 							return l1.expirationDate.compareTo(l2.expirationDate)	
 						}
 								
-						while(infos.size() > maxSessionsPerUser - 1) {
+						while(infos.size() > bean.maxSessionsPerUser - 1) {
 							//logout any
 							LoginInfo expInfo = infos.remove(0)
-							logout(message, expInfo.sessionID) { boolean loggedOut->
+							logout(bean, message, expInfo.sessionID) { boolean loggedOut->
 								
 							}
 						}
@@ -700,7 +872,7 @@ class VitalAuthManager extends Verticle {
 					expDate = System.currentTimeMillis() + _timeoutValue
 							
 					timerID = vertx.setTimer(_timeoutValue) { Long _timerID -> 
-						logout(message, sessionID) { boolean loggedOut->
+						logout(bean, message, sessionID) { boolean loggedOut->
 						}
 					}
 				}
@@ -710,13 +882,13 @@ class VitalAuthManager extends Verticle {
 				
 				//password is hashed, compare hashes
 				
-				sessions.put(sessionID, login.URI);
+				bean.sessions.put(sessionID, login.URI);
 				
 				//refresh the list
-				info = logins.get(login.URI)
+				info = bean.logins.get(login.URI)
 				if(info == null) {
 					info = Collections.synchronizedList(new ArrayList<LoginInfo>())
-					logins.put(login.URI, info);
+					bean.logins.put(login.URI, info);
 				} 
 				
 				info.add(new LoginInfo(timerID, sessionID, expDate))
@@ -738,14 +910,23 @@ class VitalAuthManager extends Verticle {
 			return
 		}
 		
+		String appID = body.get('appID')
+		if(!appID) {
+			message.reply([status: error_no_appid, message: 'no appID param'])
+			return
+		}
+		
+		AuthAppBean bean = beans.get(appID)
+		if(bean == null) {
+			message.reply([status: error_app_not_found, message: "App does not support authentication"])
+			return
+		}
+		
 		
 		if( ! validateOtherFields(message) ) return
 		
-		VitalSegment sessionsSegment = getSessionsSegment(message)
-		if(sessionsSegment == null) return
-		
 		if (sessionID != null) {
-			logout(message, sessionID) { boolean loggedOut ->
+			logout(bean, message, sessionID) { boolean loggedOut ->
 				if(loggedOut) {
 					message.reply([status: 'ok', message: 'Logged out'])
 				} else {
@@ -753,12 +934,13 @@ class VitalAuthManager extends Verticle {
 				}
 			}
 		} else {
+			message.reply([status: 'ok', message: 'Logged out'])
 		}
 	}
 
-	protected void logout(Message message, String sessionID, Closure callback) {
+	protected void logout(AuthAppBean bean, Message message, String sessionID, Closure callback) {
 		
-		if(persistentSessions) {
+		if(bean.persistentSessions) {
 			
 			int uscore = sessionID.indexOf('_')
 			
@@ -772,8 +954,7 @@ class VitalAuthManager extends Verticle {
 			Map b = message.body
 			if(b.type == null) b.type = type
 			
-			VitalSegment segment = getSessionsSegment(message)
-			if(segment == null) return null
+			VitalSegment segment = bean.sessionsSegment
 			
 			if(type == Login.class.simpleName) {
 				
@@ -789,7 +970,7 @@ class VitalAuthManager extends Verticle {
 			
 			VitalSelectQuery currentSessionQuery = Queries.getSession(segment, sessionID)
 
-			executeSelectQuery(currentSessionQuery) { ResponseMessage currentSessionsReply ->
+			bean._executeSelectQuery(currentSessionQuery) { ResponseMessage currentSessionsReply ->
 				
 				if( currentSessionsReply.exceptionMessage ) {
 					callback(false)
@@ -807,7 +988,7 @@ class VitalAuthManager extends Verticle {
 					
 					URIProperty sessionToRemove = URIProperty.withString(sessionsRL.results[0].graphObject.URI)
 					
-					delete([sessionToRemove]) { ResponseMessage deleteSessionsReply ->
+					bean._delete([sessionToRemove]) { ResponseMessage deleteSessionsReply ->
 						
 						if (deleteSessionsReply.exceptionMessage) {
 							callback(false)
@@ -834,13 +1015,13 @@ class VitalAuthManager extends Verticle {
 			
 		} else {
 		
-			String loginURI = sessions.remove(sessionID);
+			String loginURI = bean.sessions.remove(sessionID);
 			if(loginURI == null) {
 				callback(false)
 				return
 			}
 			
-			List<LoginInfo> infoList = logins.get(loginURI);
+			List<LoginInfo> infoList = bean.logins.get(loginURI);
 			if(infoList != null)  {
 				List<LoginInfo> infos = new ArrayList<LoginInfo>(infoList)
 				for(LoginInfo li : infos) {
@@ -852,7 +1033,7 @@ class VitalAuthManager extends Verticle {
 			}
 			
 			if(infoList.size() < 1) {
-				logins.remove(loginURI)
+				bean.logins.remove(loginURI)
 			}
 			
 			callback(true);
@@ -863,26 +1044,41 @@ class VitalAuthManager extends Verticle {
 
 	protected void doAuthorise(Message message) {
 		
-		String sessionID = ((Map)message.body).get("sessionID");
+		Map body = ((Map)message.body)
+		
+		String sessionID = body.get("sessionID");
 		
 		if (sessionID == null || sessionID.length() == 0) {
 			message.reply([status: error_no_sessionid_param, message: 'No session ID parameter'])
 			return;
 		}
 		
-		if(persistentSessions) {
+		String appID = body.get('appID')
+		if(!appID) {
+			message.reply([status: error_no_appid, message: 'no appID param'])
+			return
+		}
+		
+		AuthAppBean bean = beans.get(appID)
+		if(bean == null) {
+			message.reply([status: error_app_not_found, message: "App does not support authentication"])
+			return
+		}
+		
+		
+		if(bean.persistentSessions) {
 			
-			doAuthorisePersistent(message, sessionID)
+			doAuthorisePersistent(bean, message, sessionID)
 			
 		} else {
 		
-			doAuthoriseVolatile(message, sessionID)
+			doAuthoriseVolatile(bean, message, sessionID)
 			
 		}
 		
 	}
 	
-	protected void doAuthorisePersistent(Message message, String sessionID) {
+	protected void doAuthorisePersistent(AuthAppBean bean, Message message, String sessionID) {
 		
 		
 		int uscore = sessionID.indexOf('_')
@@ -898,12 +1094,11 @@ class VitalAuthManager extends Verticle {
 		
 		if(!validateOtherFields(message)) return
 		
-		VitalSegment sessionsSegment = getSessionsSegment(message)
-		if(sessionsSegment == null) return
+		VitalSegment sessionsSegment = bean.sessionsSegment
 		
 		VitalSelectQuery currentSessionsQuery = Queries.getSession(sessionsSegment, sessionID)
 
-		executeSelectQuery(currentSessionsQuery) { ResponseMessage currentSessionsReply ->
+		bean._executeSelectQuery(currentSessionsQuery) { ResponseMessage currentSessionsReply ->
 			
 			if(currentSessionsReply.exceptionMessage) {
 				message.reply([status: error_vital_service, message: 'VitalService error: ' + currentSessionsReply.exceptionType + ' - ' + currentSessionsReply.exceptionMessage])
@@ -941,7 +1136,7 @@ class VitalAuthManager extends Verticle {
 			
 			String userURI = session.loginURI.get()
 			
-			if(expDate == null || expirationProlongMargin <= 0) {
+			if(expDate == null || bean.expirationProlongMargin <= 0) {
 				onUserURIObtained(message, sessionID, userURI)
 				return
 			}
@@ -949,19 +1144,19 @@ class VitalAuthManager extends Verticle {
 			
 			//check if expDate needs to be 
 			
-			long _timeoutValue = getTimeoutValue(session.sessionType?.toString())
+			long _timeoutValue = bean.sessionTimeout
 			
 			//assumed to be in the past
 			long lastUpdateTimestamp = expDate.time - _timeoutValue
 			
 			long ctime = System.currentTimeMillis() 
 			
-			if( _timeoutValue <= 0 || ( ctime - lastUpdateTimestamp > expirationProlongMargin) ) {
+			if( _timeoutValue <= 0 || ( ctime - lastUpdateTimestamp > bean.expirationProlongMargin) ) {
 				
 				//refresh the session
 				session.expirationDate = _timeoutValue > 0 ? new Date( ctime + _timeoutValue ) : null 
 				
-				save(sessionsSegment, [session]) { ResponseMessage saveSessionReply ->
+				bean._save(sessionsSegment, [session]) { ResponseMessage saveSessionReply ->
 					
 					if (saveSessionReply.exceptionMessage) {
 						message.reply([status: error_vital_service, message: 'VitalService error: ' + saveSessionReply.exceptionType + ' - ' + saveSessionReply.exceptionMessage])
@@ -975,13 +1170,13 @@ class VitalAuthManager extends Verticle {
 						return
 					}
 					
-					onUserURIObtained(message, sessionID, userURI)
+					onUserURIObtained(bean, message, sessionID, userURI)
 					
 				}
 				
 			} else {
 			
-				onUserURIObtained(message, sessionID, userURI)
+				onUserURIObtained(bean, message, sessionID, userURI)
 				
 			}
 			
@@ -989,9 +1184,9 @@ class VitalAuthManager extends Verticle {
 		
 	}
 	
-	protected void doAuthoriseVolatile(Message message, String sessionID) {
+	protected void doAuthoriseVolatile(AuthAppBean bean, Message message, String sessionID) {
 		
-		String userURI = sessions.get(sessionID);
+		String userURI = bean.sessions.get(sessionID);
 
 		// In this basic auth manager we don't do any resource specific authorisation
 		// The user is always authorised if they are logged in
@@ -1001,19 +1196,18 @@ class VitalAuthManager extends Verticle {
 			return
 		}
 	
-		onUserURIObtained(message, sessionID, userURI)
+		onUserURIObtained(bean, message, sessionID, userURI)
 			
 	}
 	
-	protected void onUserURIObtained(Message message, String sessionID, String userURI) {
+	protected void onUserURIObtained(AuthAppBean bean, Message message, String sessionID, String userURI) {
 		
 		
 		GraphObject object = VitalSigns.get().getFromCache(userURI)
 			
 		if(object == null) {
 			
-			
-			getRemoteObject(userURI) { ResponseMessage getObjectMsg ->
+			bean._getRemoteObject(userURI) { ResponseMessage getObjectMsg ->
 				
 				if (getObjectMsg.exceptionMessage) {
 					message.reply([status: error_vital_service, message: 'VitalService error: ' + getObjectMsg.exceptionType + ' - ' + getObjectMsg.exceptionMessage])
@@ -1030,7 +1224,7 @@ class VitalAuthManager extends Verticle {
 				object = rl.first()
 				
 				if(object == null) {
-					logout(message, sessionID) { ->
+					logout(bean, message, sessionID) { ->
 						
 					}
 					message.reply([status: error_login_no_longer_exists, message: 'Login object no longer exists, URI: ' + userURI])
@@ -1039,7 +1233,7 @@ class VitalAuthManager extends Verticle {
 				
 				if(object instanceof CredentialsLogin) {
 					CredentialsLogin l = object
-					if( l.emailVerified == null || l.emailVerified == false ) {
+					if( l.emailVerified == null || l.emailVerified.booleanValue() == false ) {
 						message.reply([status: error_email_unverified, message: (String) "The email ${l.username} is not verified, cannot log in"])
 						return
 					}
@@ -1058,25 +1252,4 @@ class VitalAuthManager extends Verticle {
 		
   }
 
-  protected long getTimeoutValue(String type) {
-
-	  long timeoutValue = 0
-	  
-	  if(type == Login.class.simpleName) {
-		  
-		  timeoutValue = this.sessionTimeout
-		  
-	  } else if(type == AdminLogin.class.simpleName) {
-	  
-		  timeoutValue = this.adminSessionTimeout
-		  
-	  } else if(type == SuperAdminLogin.class.simpleName) {
-	  
-		  timeoutValue = this.superAdminSessionTimeout
-		  
-	  } 
-
-	  return timeoutValue
-	  	  
-  }
 }

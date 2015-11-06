@@ -1,31 +1,23 @@
-package ai.vital.service.vertx
+package ai.vital.adminauth.mod
 
 import groovy.lang.Closure;
 import junit.framework.TestCase;
 
-import org.vertx.groovy.core.Vertx;
 import org.vertx.java.core.AsyncResult
 import org.vertx.java.core.AsyncResultHandler
-import org.vertx.java.core.json.JsonArray
 import org.vertx.java.core.json.JsonObject
-import org.vertx.java.platform.PlatformLocator;
-import org.vertx.java.platform.PlatformManager;
-
-import ai.vital.service.vertx.test.LocalTestPlatform;
 
 import ai.vital.service.vertx.test.LocalTestPlatform;
 
 
 /**
- * Base class for vitalservice vertx module tests, provides a local vertx platform
+ * Base class for vitalservice admin vertx module tests, provides a local vertx platform
  * @author Derek
  *
  */
-abstract class AbstractVitalServiceVertxTest extends TestCase {
+abstract class AbstractVitalServiceAdminVertxTest extends TestCase {
 
 	LocalTestPlatform ltp
-	
-//	public void testNop() {}
 	
 	@Override
 	protected void setUp() throws Exception {
@@ -44,19 +36,13 @@ abstract class AbstractVitalServiceVertxTest extends TestCase {
 	 */
 	void deployModules(LocalTestPlatform ltp) {
 		
-		JsonObject cfg = new JsonObject();
-		JsonObject serviceCfg = new JsonObject()
-		serviceCfg.putString('profile', 'default')
-		serviceCfg.putString("key", "aaaa-aaaa-aaaa")
-		JsonArray ja = new JsonArray();
-		ja.addObject(serviceCfg)
-		cfg.putArray('services', ja)
+		JsonObject cfg = new JsonObject()
+		cfg.putString("key", "admi-admi-admi")
 		
-		
-		ltp.pm.deployModule("vital-ai~vitalservice-vertx-mod~0.2.300", cfg, 1, new AsyncResultHandler<String>() {
+		ltp.pm.deployModule("vital-ai~vitalserviceadmin-vertx-mod~0.2.300", cfg, 1, new AsyncResultHandler<String>() {
 			public void handle(AsyncResult<String> asyncResult) {
 				if (asyncResult.succeeded()) {
-					println("Vital Service deployment ID is " + asyncResult.result());
+					println("Vital Service Admin deployment ID is " + asyncResult.result());
 				} else {
 					ltp.ex = asyncResult.cause()
 					ltp.ex.printStackTrace()
@@ -66,18 +52,17 @@ abstract class AbstractVitalServiceVertxTest extends TestCase {
 				
 			}
 		});
-	
+		
 	}
 	
 	
 	@Override
 	protected void tearDown() throws Exception {
 
-		if(ltp != null) {
-			ltp.destroyPlatform()
-		}
+		if(ltp != null) ltp.destroyPlatform()
+		
 		ltp = null
 		
 	}
-
+	
 }

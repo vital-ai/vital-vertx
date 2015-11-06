@@ -3,6 +3,7 @@ package ai.vital.service.vertx
 import junit.framework.TestCase
 
 import org.apache.commons.lang3.SerializationUtils;
+import org.junit.After;
 import org.vertx.groovy.core.Vertx;
 import org.vertx.groovy.core.eventbus.Message;
 import org.vertx.java.core.AsyncResult;
@@ -25,7 +26,7 @@ class VitalServiceModTest extends AbstractVitalServiceVertxTest {
 		Map r = null
 		
 		ltp.delayed { ->
-			ltp.vertx.eventBus.send(VitalServiceMod.ADDRESS, ['method': 'ping', 'args': []]) { Message response ->
+			ltp.vertx.eventBus.send(VitalServiceMod.ADDRESS_PREFIX + 'app', ['method': 'ping', 'args': []]) { Message response ->
 				
 				r = response.body
 			
@@ -48,7 +49,7 @@ class VitalServiceModTest extends AbstractVitalServiceVertxTest {
 		r = null
 		
 		ltp.delayed { ->
-			ltp.vertx.eventBus.send(VitalServiceMod.ADDRESS, ['method': 'ping2', 'args': []]) { Message response ->
+			ltp.vertx.eventBus.send(VitalServiceMod.ADDRESS_PREFIX + 'app', ['method': 'ping2', 'args': []]) { Message response ->
 				
 				r = response.body
 			
@@ -73,7 +74,7 @@ class VitalServiceModTest extends AbstractVitalServiceVertxTest {
 		def res = null
 		
 		ltp.delayed { ->
-			ltp.vertx.eventBus.send(VitalServiceMod.ADDRESS, SerializationUtils.serialize(payload)) { Message response ->
+			ltp.vertx.eventBus.send(VitalServiceMod.ADDRESS_PREFIX + 'app', SerializationUtils.serialize(payload)) { Message response ->
 				
 				res = VitalJavaSerializationUtils.deserialize( response.body() )
 			
@@ -94,7 +95,7 @@ class VitalServiceModTest extends AbstractVitalServiceVertxTest {
 		
 		ltp.delayed { ->
 			//call non-existing method or some other exception
-			ltp.vertx.eventBus.send(VitalServiceMod.ADDRESS, SerializationUtils.serialize(new PayloadMessage("pingXXX", []))) { Message response ->
+			ltp.vertx.eventBus.send(VitalServiceMod.ADDRESS_PREFIX + 'app', SerializationUtils.serialize(new PayloadMessage("pingXXX", []))) { Message response ->
 				
 				res = VitalJavaSerializationUtils.deserialize( response.body() )
 				

@@ -18,6 +18,7 @@ import ai.vital.vitalsigns.java.VitalJavaSerializationUtils;
 import ai.vital.vitalsigns.meta.GraphContext
 import ai.vital.vitalsigns.model.GraphObject
 import ai.vital.vitalsigns.model.VITAL_Event
+import ai.vital.vitalsigns.model.VitalApp;
 import ai.vital.vitalsigns.model.VitalSegment
 import ai.vital.vitalsigns.model.VitalTransaction
 import ai.vital.vitalsigns.model.container.GraphObjectsIterable
@@ -33,15 +34,22 @@ import ai.vital.vitalsigns.model.property.URIProperty
 class VitalServiceAsyncClient {
 
 	Vertx vertx
-	
-	VitalServiceAsyncClient(Vertx vertx) {
+
+	String address = null
+		
+	VitalServiceAsyncClient(Vertx vertx, VitalApp app) {
 		if(vertx == null) throw new NullPointerException("Null Vertx instance")
+		if(app == null) throw new NullPointerException("Null app")
+		String appID = app.appID?.toString()
+		if(appID == null) throw new NullPointerException("Null appID")
+		if( ! VitalServiceMod.registeredServices.containsKey(appID) ) throw new RuntimeException("Vitalservice handler for app: ${appID} not found")
+		this.address = VitalServiceMod.ADDRESS_PREFIX + appID
 		this.vertx = vertx
 	}
 	
 	private void impl(Closure closure, String method, List args) {
 		
-		vertx.eventBus.send(VitalServiceMod.ADDRESS, SerializationUtils.serialize(new PayloadMessage(method, args))) { Message response ->
+		vertx.eventBus.send(this.address, SerializationUtils.serialize(new PayloadMessage(method, args))) { Message response ->
 		
 		ResponseMessage res = VitalJavaSerializationUtils.deserialize( response.body() )
 		

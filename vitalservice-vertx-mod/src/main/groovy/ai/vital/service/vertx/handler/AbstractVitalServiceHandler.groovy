@@ -33,7 +33,10 @@ abstract class AbstractVitalServiceHandler {
 	
 	protected abstract void handleMethod(String method, Object[] args, Closure closure)
 	
-	static Map<String, ICallFunctionHandler> callFunctionHandlers
+	static Map<String, ICallFunctionHandler> commonFunctionHandlers
+	
+	//handlers registered per application
+	static Map<String, Map<String, ICallFunctionHandler>> appFunctionHandlers = Collections.synchronizedMap([:])
 	
 	static Map<String, Subscription> subscriptions = [:]
 	
@@ -287,24 +290,24 @@ abstract class AbstractVitalServiceHandler {
 	
 	void initStaticHandlers() {
 		
-		if(callFunctionHandlers != null) return
+		if(commonFunctionHandlers != null) return
 		
 		synchronized (AbstractVitalServiceHandler.class) {
 			
-			if(callFunctionHandlers != null) return
+			if(commonFunctionHandlers != null) return
 			
-			callFunctionHandlers = Collections.synchronizedMap(new LinkedHashMap<String, ICallFunctionHandler>())
+			commonFunctionHandlers = Collections.synchronizedMap(new LinkedHashMap<String, ICallFunctionHandler>())
 			
-			callFunctionHandlers.put(CallFunctionHandler.VERTX_REGISTER_HANDLER, new VertxRegisterImpl(this))
-			callFunctionHandlers.put(CallFunctionHandler.VERTX_UNREGISTER_HANDLER, new VertxUnregisterImpl(this))
-			callFunctionHandlers.put(CallFunctionHandler.VERTX_LIST_HANDLERS, new VertxListHandlersImpl(this))
+			commonFunctionHandlers.put(CallFunctionHandler.VERTX_REGISTER_HANDLER, new VertxRegisterImpl(this))
+			commonFunctionHandlers.put(CallFunctionHandler.VERTX_UNREGISTER_HANDLER, new VertxUnregisterImpl(this))
+			commonFunctionHandlers.put(CallFunctionHandler.VERTX_LIST_HANDLERS, new VertxListHandlersImpl(this))
 			//register default ones
 			
-			callFunctionHandlers.put(CallFunctionHandler.VERTX_SEND_TO_STREAM, new VertxSendToStreamImpl(this))
-			callFunctionHandlers.put(CallFunctionHandler.VERTX_STREAM_LIST_SESSION_SUBSCRIPTIONS, new VertxStreamListSessionSubscriptionsImpl(this))
-			callFunctionHandlers.put(CallFunctionHandler.VERTX_STREAM_LIST_STREAM_SUBSCRIBERS, new VertxStreamListStreamSubscribersImpl(this))
-			callFunctionHandlers.put(CallFunctionHandler.VERTX_STREAM_SUBSCRIBE, new VertxStreamSubscribeImpl(this))
-			callFunctionHandlers.put(CallFunctionHandler.VERTX_STREAM_UNSUBSCRIBE, new VertxStreamUnsubscribeImpl(this))
+			commonFunctionHandlers.put(CallFunctionHandler.VERTX_SEND_TO_STREAM, new VertxSendToStreamImpl(this))
+			commonFunctionHandlers.put(CallFunctionHandler.VERTX_STREAM_LIST_SESSION_SUBSCRIPTIONS, new VertxStreamListSessionSubscriptionsImpl(this))
+			commonFunctionHandlers.put(CallFunctionHandler.VERTX_STREAM_LIST_STREAM_SUBSCRIBERS, new VertxStreamListStreamSubscribersImpl(this))
+			commonFunctionHandlers.put(CallFunctionHandler.VERTX_STREAM_SUBSCRIBE, new VertxStreamSubscribeImpl(this))
+			commonFunctionHandlers.put(CallFunctionHandler.VERTX_STREAM_UNSUBSCRIBE, new VertxStreamUnsubscribeImpl(this))
 			
 		}
 		
@@ -366,7 +369,23 @@ abstract class AbstractVitalServiceHandler {
 	 */
 	protected ResultList callFunctionLogic(VitalOrganization organization, VitalApp app, String function, Map<String, Object> params, Closure closure) {
 		
-		ICallFunctionHandler handler = callFunctionHandlers.get(function)
+		ICallFunctionHandler handler = commonFunctionHandlers.get(function)
+		
+		if(handler == null) {
+			
+			if(app != null) {
+				
+				Map<String, ICallFunctionHandler> appHandlers = appFunctionHandlers.get(app.appID.toString())
+				
+				if(appHandlers != null) {
+					
+					handler = appHandlers.get(function)
+					
+				}
+				
+			}
+			
+		}
 		
 		if(handler != null) {
 			
@@ -391,6 +410,10 @@ abstract class AbstractVitalServiceHandler {
 			} else if(handler instanceof AsyncCallFunctionHandler) {
 			
 				AsyncCallFunctionHandler acfh = handler
+				
+				if(acfh instanceof VertxAwareAsyncCallFunctionHandler) {
+					((VertxAwareAsyncCallFunctionHandler)acfh).vertx = vertx
+				}
 				
 				try {
 					

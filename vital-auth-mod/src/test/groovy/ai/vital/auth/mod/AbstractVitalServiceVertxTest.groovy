@@ -1,4 +1,4 @@
-package ai.vital.service.vertx
+package ai.vital.auth.mod
 
 import groovy.lang.Closure;
 import junit.framework.TestCase;
@@ -6,7 +6,6 @@ import junit.framework.TestCase;
 import org.vertx.groovy.core.Vertx;
 import org.vertx.java.core.AsyncResult
 import org.vertx.java.core.AsyncResultHandler
-import org.vertx.java.core.json.JsonArray
 import org.vertx.java.core.json.JsonObject
 import org.vertx.java.platform.PlatformLocator;
 import org.vertx.java.platform.PlatformManager;
@@ -44,14 +43,14 @@ abstract class AbstractVitalServiceVertxTest extends TestCase {
 	 */
 	void deployModules(LocalTestPlatform ltp) {
 		
-		JsonObject cfg = new JsonObject();
-		JsonObject serviceCfg = new JsonObject()
-		serviceCfg.putString('profile', 'default')
-		serviceCfg.putString("key", "aaaa-aaaa-aaaa")
-		JsonArray ja = new JsonArray();
-		ja.addObject(serviceCfg)
-		cfg.putArray('services', ja)
+		Map cfgMap = [
+			services: [[
+				key: 'aaaa-aaaa-aaaa',
+				profile: 'default'
+			]]
+		]
 		
+		JsonObject cfg = new JsonObject(cfgMap);
 		
 		ltp.pm.deployModule("vital-ai~vitalservice-vertx-mod~0.2.300", cfg, 1, new AsyncResultHandler<String>() {
 			public void handle(AsyncResult<String> asyncResult) {

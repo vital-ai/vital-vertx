@@ -7,16 +7,18 @@ import org.vertx.java.core.AsyncResult
 import org.vertx.java.core.AsyncResultHandler
 import org.vertx.java.core.json.JsonObject
 
+import ai.vital.auth.handlers.VitalAuthoriseHandler;
 import ai.vital.domain.CredentialsLogin;
 import ai.vital.domain.Login;
+import ai.vital.domain.UserSession;
 import ai.vital.lucene.disk.service.config.VitalServiceLuceneDiskConfig;
 import ai.vital.mock.service.VitalServiceMock;
-import ai.vital.service.vertx.AbstractVitalServiceVertxTest;
 import ai.vital.service.vertx.VitalServiceMod;
 import ai.vital.vitalservice.VitalService;
 import ai.vital.vitalservice.admin.VitalServiceAdmin;
 import ai.vital.vitalservice.factory.VitalServiceFactory;
 import ai.vital.vitalservice.json.VitalServiceJSONMapper;
+import ai.vital.vitalservice.query.ResultList
 import ai.vital.vitalsigns.model.VitalApp
 import ai.vital.vitalsigns.model.VitalSegment;
 import ai.vital.vitalsigns.model.VitalServiceAdminKey;
@@ -30,10 +32,11 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 	
 	protected Login login
 	
+	VitalApp app = VitalApp.withId("app")
+	
 	@Override
 	protected void setUp() throws Exception {
 		
-		VitalApp app = VitalApp.withId("app")
 		
 		//init the service here to avoid
 		VitalServiceLuceneDiskConfig cfg = new VitalServiceLuceneDiskConfig()
@@ -71,7 +74,7 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		
 		//the service should be ready
-		VitalService service = VitalServiceFactory.openService(serviceKey, cfg, VitalServiceMod.SERVICE_NAME)
+		VitalService service = VitalServiceFactory.openService(serviceKey, cfg, VitalServiceMod.SERVICE_NAME_PREFIX + app.appID.toString())
 		
 		login = new Login().generateURI(app)
 		login.username = "test"
@@ -87,12 +90,29 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		//once service mod is up setup the auth mod
 		
-		JsonObject modCfg = new JsonObject([
-			loginsSegment: loginsSegment.segmentID.toString(),
-			persistentSessions: true,
-			maxSessionsPerUser: 3,
-			expirationProlongMargin: 10000
-		])
+		Map modCfgMap = [
+			
+			apps: [
+				"${app.appID.toString()}": [
+					auth_enabled: true,
+					access: 'service',
+					loginsSegment: loginsSegment.segmentID.toString(),
+					sessionsSegment: sessionsSegment.segmentID.toString(),
+					persistentSessions: true,
+					maxSessionsPerUser: 3,
+					expirationProlongMargin: 10000,
+					filter: [
+						[ type: 'allow', method: 'ping' ],
+						[ type: 'allow', method: 'callFunction', function: 'vitalauth\\..*' ],
+						[ type: 'auth', method: 'listSegments' ],
+						[ type: 'deny', method: '.*'] 
+					]
+				]	
+			]
+			
+		]
+		
+		JsonObject modCfg = new JsonObject(modCfgMap)
 		
 		ltp.delayed { ->
 		
@@ -135,7 +155,7 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		ltp.delayed { ->
 			
-			ltp.vertx.eventBus.send(VitalAuthManager.address_login, [type: Login.class.simpleName, username: 'test', password: 'pass']) { Message response ->
+			ltp.vertx.eventBus.send(VitalAuthManager.address_login, [appID: app.appID.toString(), type: Login.class.simpleName, username: 'test', password: 'pass']) { Message response ->
 				
 				body = response.body()
 				
@@ -165,7 +185,7 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		ltp.delayed {
 			
-			ltp.vertx.eventBus.send(VitalAuthManager.address_authorise, [sessionID: sessionID]) { Message response ->
+			ltp.vertx.eventBus.send(VitalAuthManager.address_authorise, [appID: app.appID.toString(), sessionID: sessionID]) { Message response ->
 
 				body = response.body()
 				
@@ -194,7 +214,7 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 				
 		ltp.delayed { ->
 			
-			ltp.vertx.eventBus.send(VitalAuthManager.address_logout, [type: Login.class.simpleName, sessionID: sessionID]) { Message response ->
+			ltp.vertx.eventBus.send(VitalAuthManager.address_logout, [appID: app.appID.toString(), type: Login.class.simpleName, sessionID: sessionID]) { Message response ->
 				
 				body = response.body()
 				
@@ -219,7 +239,7 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		ltp.delayed { ->
 			
-			ltp.vertx.eventBus.send(VitalAuthManager.address_login, [type: Login.class.simpleName, username: 'test', password: 'passwrong']) { Message response ->
+			ltp.vertx.eventBus.send(VitalAuthManager.address_login, [appID: app.appID.toString(), type: Login.class.simpleName, username: 'test', password: 'passwrong']) { Message response ->
 				
 				body = response.body()
 				
@@ -242,7 +262,7 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 
 		ltp.delayed {
 			
-			ltp.vertx.eventBus.send(VitalAuthManager.address_authorise, [sessionID: 'Login_111']) { Message response ->
+			ltp.vertx.eventBus.send(VitalAuthManager.address_authorise, [appID: app.appID.toString(), sessionID: 'Login_111']) { Message response ->
 
 				body = response.body()
 				
@@ -255,6 +275,166 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		ltp.waitNow()
 		
 		assertEquals(VitalAuthManager.error_denied, body.status)
+	
+		endpointAccessPing();
+			
+			
+	}
+	
+	private void endpointAccessPing() {
+		
+		println "TESTING PING"
+		
+		//ping is allowed without authentication
+		Map body = null
+		
+		String serviceAddress = VitalJSEndpointsManager.ENDPOINT_PREFIX + app.appID.toString()
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus.send(serviceAddress, [method: 'ping', sessionID: null, args: []]) { Message response ->
+				
+				body = response.body()
+				
+				
+				ltp.resume()
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(body.message, 'ok', body.status)
+		
+		
+		println "TESTING LIST SEGMENTS"
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus.send(serviceAddress, [method: 'listSegments', sessionID: null, args: []]) { Message response ->
+				
+				body = response.body()
+				
+				ltp.resume()
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(body.message, VitalJSEndpointsManager.error_authentication_required, body.status)
+		
+		
+		println "TESTING LIST SEGMENTS WITH BROKEN SESSION"
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus.send(serviceAddress, [method: 'listSegments', sessionID: 'Login_fake!', args: []]) { Message response ->
+				
+				body = response.body()
+				
+				ltp.resume()
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(body.message, VitalAuthManager.error_denied, body.status)
+		
+		
+		println "AUTHENTICATION"
+		
+		//authenticate and access the method
+		
+		ltp.delayed { ->
+			
+			ltp.vertx.eventBus.send(VitalAuthManager.address_login, [appID: app.appID.toString(), type: Login.class.simpleName, username: 'test', password: 'pass']) { Message response ->
+				
+				body = response.body()
+				
+				ltp.resume()
+				
+			}
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(body.message, "ok", body.status)
+		
+		String sessionID = body.sessionID
+		
+		println "TESTING PING WITH VALID SESSION"
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus.send(serviceAddress, [method: 'ping', sessionID: sessionID, args: []]) { Message response ->
+				
+				body = response.body()
+				
+				
+				ltp.resume()
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(body.message, 'ok', body.status)
+		
+		
+		println "TESTING LIST SEGMENTS WITH VALID SESSION"
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus.send(serviceAddress, [method: 'listSegments', sessionID: sessionID, args: []]) { Message response ->
+				
+				body = response.body()
+				
+				ltp.resume()
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(body.message, 'ok', body.status)
+		
+		
+		println "TESTING vitalauth.authorise call"
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus.send(serviceAddress, [method: 'callFunction', sessionID: sessionID, args: [VitalAuthoriseHandler.function_authorise, [sessionID: sessionID]]]) { Message response ->
+				
+				body = response.body()
+				
+				ltp.resume()
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(body.message, 'ok', body.status)
+		
+		ResultList rl = VitalServiceJSONMapper.fromJSON(body.response)
+		
+		assertEquals(2, rl.results.size())
+		
+		assertTrue(rl.results[0].graphObject instanceof Login)
+		
+		assertTrue(rl.results[1].graphObject instanceof UserSession)
+		
+		
 		
 	}
+	
+	
 }
