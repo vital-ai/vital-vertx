@@ -24,6 +24,8 @@ class VitalJSEndpointsManager {
 	
 	public final static String ENDPOINT_PREFIX = 'endpoint.'
 	
+	public final static String SESSION_LOGIN = '_sessionLogin'
+	
 	public VitalAuthManager authManager
 	
 	public VitalJSEndpointsManager(VitalAuthManager authManager) {
@@ -128,7 +130,7 @@ class VitalJSEndpointsManager {
 								
 								
 								//pass the login to handlers to avoid the redundancy of checking the session twice
-								body.put('login', authBody.get('object'))
+								body.put(SESSION_LOGIN, authBody.get('object'))
 								
 								//authorized
 								bean._passMessage(msg)
@@ -175,7 +177,7 @@ class VitalJSEndpointsManager {
 							
 							
 							//pass the login to handlers to avoid the redundancy of checking the session twice
-							body.put('login', authBody.get('object'))
+							body.put(SESSION_LOGIN, authBody.get('object'))
 							
 							//authorized
 							bean._passMessage(msg)

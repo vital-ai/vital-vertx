@@ -22,7 +22,7 @@ class VertxListHandlersImpl extends VertxHandler {
 
 	@Override
 	public ResultList callFunction(VitalOrganization organization, VitalApp app,
-			String function, Map<String, Object> params)
+			String function, Map<String, Object> params, Map<String, Object> sessionParams)
 			throws VitalServiceUnimplementedException, VitalServiceException {
 
 				

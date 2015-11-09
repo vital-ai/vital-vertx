@@ -1,21 +1,16 @@
 package ai.vital.auth.handlers
 
-import groovy.lang.Closure
+import org.vertx.groovy.core.eventbus.Message
 
-import java.util.Map;
-
-import org.vertx.groovy.core.eventbus.Message;
-
-import ai.vital.domain.CredentialsLogin;
-import ai.vital.domain.UserSession;
-import ai.vital.service.vertx.handler.AsyncCallFunctionHandler;
-import ai.vital.service.vertx.handler.VertxAwareAsyncCallFunctionHandler;
-import ai.vital.vitalservice.VitalStatus;
-import ai.vital.vitalservice.json.VitalServiceJSONMapper;
+import ai.vital.domain.CredentialsLogin
+import ai.vital.domain.UserSession
+import ai.vital.service.vertx.handler.VertxAwareAsyncCallFunctionHandler
+import ai.vital.vitalservice.VitalStatus
+import ai.vital.vitalservice.json.VitalServiceJSONMapper
 import ai.vital.vitalservice.query.ResultElement
-import ai.vital.vitalservice.query.ResultList;
-import ai.vital.vitalsigns.model.VitalApp;
-import ai.vital.vitalsigns.model.VitalOrganization;
+import ai.vital.vitalservice.query.ResultList
+import ai.vital.vitalsigns.model.VitalApp
+import ai.vital.vitalsigns.model.VitalOrganization
 
 class VitalAuthoriseHandler extends VertxAwareAsyncCallFunctionHandler {
 
@@ -25,7 +20,7 @@ class VitalAuthoriseHandler extends VertxAwareAsyncCallFunctionHandler {
 	
 	@Override
 	public void callFunction(VitalOrganization organization, VitalApp app,
-			String function, Map<String, Object> params, Closure closure)
+			String function, Map<String, Object> params, Map<String, Object> sessionParams, Closure closure)
 			throws Exception {
 
 				

@@ -13,7 +13,7 @@ class Handler1 implements CallFunctionHandler {
 
 		@Override
 		public ResultList callFunction(VitalOrganization organization, VitalApp app,
-				String function, Map<String, Object> params)
+				String function, Map<String, Object> params, Map<String, Object> sessionParams)
 				throws VitalServiceUnimplementedException,
 				VitalServiceException {
 

@@ -10,6 +10,6 @@ import ai.vital.vitalsigns.model.VitalOrganization;
 
 interface AsyncCallFunctionHandler extends ICallFunctionHandler {
 
-	public void callFunction(VitalOrganization organization, VitalApp app, String function, Map<String, Object> params, Closure closure) throws Exception
+	public void callFunction(VitalOrganization organization, VitalApp app, String function, Map<String, Object> params, Map<String, Object> sessionParams, Closure closure) throws Exception
 	
 }

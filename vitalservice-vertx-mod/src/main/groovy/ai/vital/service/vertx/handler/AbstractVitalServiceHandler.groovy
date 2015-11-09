@@ -1,5 +1,6 @@
 package ai.vital.service.vertx.handler
 
+import java.util.Map.Entry
 import org.apache.commons.lang3.SerializationUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -31,7 +32,7 @@ abstract class AbstractVitalServiceHandler {
 	
 	private final static Logger log = LoggerFactory.getLogger(AbstractVitalServiceHandler.class)
 	
-	protected abstract void handleMethod(String method, Object[] args, Closure closure)
+	protected abstract void handleMethod(String method, Object[] args, Map<String, Object> sessionParams, Closure closure)
 	
 	static Map<String, ICallFunctionHandler> commonFunctionHandlers
 	
@@ -56,6 +57,9 @@ abstract class AbstractVitalServiceHandler {
 					
 					
 			Object[] a = null
+			
+			//entry point for various extensions
+			Map<String, Object> sessionParams = null
 			
 			//json
 			if(bodyObj instanceof Map) {
@@ -86,6 +90,18 @@ abstract class AbstractVitalServiceHandler {
 				a = l.toArray(new Object[l.size()])
 				
 				
+				for(Entry e : body.entrySet()) {
+					
+					if(((String)e.key).startsWith('_session')) {
+						
+						if(sessionParams == null) sessionParams = [:]
+						sessionParams.put(e.key, e.value)
+						
+					}
+					
+				}
+				
+				
 			} else if(bodyObj instanceof byte[]) {
 			
 				binaryResponse = new ResponseMessage()
@@ -100,6 +116,7 @@ abstract class AbstractVitalServiceHandler {
 				
 				method = bmp.method
 				a = bmp.args.toArray()
+				sessionParams = bmp.sessionParams
 				
 			
 			} else {
@@ -108,7 +125,8 @@ abstract class AbstractVitalServiceHandler {
 			
 			}
 		
-			handleMethod(method, a) { Object response ->
+			if(sessionParams == null) sessionParams = [:]
+			handleMethod(method, a, sessionParams) { Object response ->
 			
 				handleAsyncResponse(msg, binaryResponse, jsonResponse, response)
 					
@@ -367,7 +385,7 @@ abstract class AbstractVitalServiceHandler {
 	 * Returns null if it should falls back to service call function
 	 * @return ResultList if callFunction handled, false to fall back to lower layer  
 	 */
-	protected ResultList callFunctionLogic(VitalOrganization organization, VitalApp app, String function, Map<String, Object> params, Closure closure) {
+	protected ResultList callFunctionLogic(VitalOrganization organization, VitalApp app, String function, Map<String, Object> params, Map<String, Object> sessionParams, Closure closure) {
 		
 		ICallFunctionHandler handler = commonFunctionHandlers.get(function)
 		
@@ -395,7 +413,7 @@ abstract class AbstractVitalServiceHandler {
 				
 				try {
 					
-					ResultList rl = cfh.callFunction(organization, app, function, params)
+					ResultList rl = cfh.callFunction(organization, app, function, params, sessionParams)
 					if(rl == null) throw new RuntimeException("Handler ${handler.class.canonicalName} did not return ResultList object")
 					return rl
 							
@@ -409,7 +427,7 @@ abstract class AbstractVitalServiceHandler {
 				
 			} else if(handler instanceof AsyncCallFunctionHandler) {
 			
-				AsyncCallFunctionHandler acfh = handler
+				AsyncCallFunctionHandler acfh = (AsyncCallFunctionHandler)handler
 				
 				if(acfh instanceof VertxAwareAsyncCallFunctionHandler) {
 					((VertxAwareAsyncCallFunctionHandler)acfh).vertx = vertx
@@ -417,7 +435,7 @@ abstract class AbstractVitalServiceHandler {
 				
 				try {
 					
-					acfh.callFunction(organization, app, function, params, closure)
+					acfh.callFunction(organization, app, function, params, sessionParams, closure)
 					
 				} catch(Exception e) {
 				

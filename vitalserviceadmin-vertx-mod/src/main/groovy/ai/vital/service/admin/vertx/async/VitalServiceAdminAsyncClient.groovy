@@ -39,6 +39,8 @@ class VitalServiceAdminAsyncClient {
 
 	Vertx vertx
 	
+	String overriddenAddress = null;
+	
 	VitalServiceAdminAsyncClient(Vertx vertx) {
 		if(vertx == null) throw new NullPointerException("Null Vertx instance")
 		this.vertx = vertx
@@ -46,7 +48,9 @@ class VitalServiceAdminAsyncClient {
 	
 	private void impl(Closure closure, String method, List args) {
 		
-		vertx.eventBus.send(VitalServiceAdminMod.ADDRESS, SerializationUtils.serialize(new PayloadMessage(method, args))) { Message response ->
+		String address = overriddenAddress ? overriddenAddress : VitalServiceAdminMod.ADDRESS
+		
+		vertx.eventBus.send(address, SerializationUtils.serialize(new PayloadMessage(method, args))) { Message response ->
 		
 			ResponseMessage res = VitalJavaSerializationUtils.deserialize( response.body() )
 		

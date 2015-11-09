@@ -1,5 +1,7 @@
 package ai.vital.service.vertx.handler
 
+import java.util.Map;
+
 import org.apache.commons.lang3.SerializationUtils;
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -42,7 +44,7 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 		return t
 	}
 	
-	protected void handleMethod(String method, Object[] a, Closure closure) {
+	protected void handleMethod(String method, Object[] a, Map<String, Object> sessionParams, Closure closure) {
 		
 		Object response = null
 			
@@ -58,7 +60,7 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 			
 			checkParams(method, a, true, String.class, Map.class)
 			
-			response = callFunctionLogic(service.getOrganization(), service.getApp(), a[0], a[1], closure)
+			response = callFunctionLogic(service.getOrganization(), service.getApp(), a[0], a[1], sessionParams, closure)
 						
 			if(response == null) response = service.callFunction(a[0], a[1])
 				 

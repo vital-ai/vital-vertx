@@ -1,5 +1,7 @@
 package ai.vital.service.admin.vertx.handler
 
+import java.util.Map;
+
 import groovy.lang.Closure;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -48,7 +50,7 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 		return t
 	}
 	
-	protected void handleMethod(String method, Object[] a, Closure closure) {
+	protected void handleMethod(String method, Object[] a, Map<String, Object> sessionParams, Closure closure) {
 
 		Object response = null
 	
@@ -82,7 +84,7 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 			
 			checkParams(method, a, true, VitalApp.class, String.class, Map.class)
 			
-			response = callFunctionLogic(service.getOrganization(), a[0], a[1], a[2], closure)
+			response = callFunctionLogic(service.getOrganization(), a[0], a[1], a[2], sessionParams, closure)
 			
 			if(response == null) response = service.callFunction(a[0], a[1], a[2])
 			 

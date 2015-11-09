@@ -20,7 +20,7 @@ class VitalLogoutHandler extends VertxAwareAsyncCallFunctionHandler {
 	
 	@Override
 	public void callFunction(VitalOrganization organization, VitalApp app,
-			String function, Map<String, Object> params, Closure closure)
+			String function, Map<String, Object> params, Map<String, Object> sessionParams, Closure closure)
 			throws Exception {
 
 				

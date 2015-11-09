@@ -6,7 +6,9 @@ class PayloadMessage implements Serializable {
 
 	String method
 	
-	List args
+	List args
+	
+	Map<String, Object> sessionParams
 
 	public PayloadMessage() {
 		super();

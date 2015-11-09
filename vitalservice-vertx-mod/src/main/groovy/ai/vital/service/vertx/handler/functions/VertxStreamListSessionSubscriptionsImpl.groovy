@@ -1,5 +1,7 @@
 package ai.vital.service.vertx.handler.functions
 
+import java.util.Map;
+
 import ai.vital.service.vertx.handler.AbstractVitalServiceHandler
 import ai.vital.service.vertx.handler.Subscription
 import ai.vital.vitalservice.exception.VitalServiceException
@@ -18,7 +20,7 @@ class VertxStreamListSessionSubscriptionsImpl extends VertxHandler {
 
 	@Override
 	public ResultList callFunction(VitalOrganization organization, VitalApp app,
-			String function, Map<String, Object> params)
+			String function, Map<String, Object> params, Map<String, Object> sessionParams)
 			throws VitalServiceUnimplementedException, VitalServiceException {
 
 		String sessionID = getRequiredStringParam('sessionID', params)

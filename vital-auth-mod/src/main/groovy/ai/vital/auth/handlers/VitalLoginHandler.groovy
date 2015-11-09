@@ -6,7 +6,9 @@ import java.util.Map;
 
 import org.vertx.groovy.core.eventbus.Message;
 
+import ai.vital.auth.mod.VitalJSEndpointsManager;
 import ai.vital.domain.CredentialsLogin;
+import ai.vital.domain.UserLogin
 import ai.vital.domain.UserSession;
 import ai.vital.service.vertx.handler.AsyncCallFunctionHandler;
 import ai.vital.service.vertx.handler.VertxAwareAsyncCallFunctionHandler;
@@ -25,13 +27,17 @@ class VitalLoginHandler extends VertxAwareAsyncCallFunctionHandler {
 	
 	@Override
 	public void callFunction(VitalOrganization organization, VitalApp app,
-			String function, Map<String, Object> params, Closure closure)
+			String function, Map<String, Object> params, Map<String, Object> sessionParams, Closure closure)
 			throws Exception {
 
 				
 		try {
 			
 			if(!loginAddress) throw new Exception("Internal error - No loginAddress")
+			
+			UserLogin _login = sessionParams.get(VitalJSEndpointsManager.SESSION_LOGIN)
+			
+			if(_login != null) { throw new RuntimeException("Already logged in") }
 			
 			String type = params.get('loginType')
 			if(!type) throw new RuntimeException("No 'loginType' param")
