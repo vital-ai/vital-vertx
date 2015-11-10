@@ -3,8 +3,6 @@ package ai.vital.auth.mod
 import java.util.Map.Entry
 import java.util.regex.Pattern;
 
-import org.junit.After;
-
 class AppFilter {
 
 	public static abstract class Rule {

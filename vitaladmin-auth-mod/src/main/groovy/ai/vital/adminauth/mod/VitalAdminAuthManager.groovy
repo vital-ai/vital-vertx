@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.githubusercontent.defuse.passwordhash.PasswordHash;
-import org.junit.After;
 import org.vertx.groovy.core.eventbus.EventBus
 import org.vertx.groovy.platform.Verticle
 import org.vertx.groovy.core.eventbus.Message;

@@ -1,5 +1,7 @@
 package ai.vital.auth.mod
 
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory;
 import org.vertx.groovy.core.eventbus.Message;
 
 import ai.vital.auth.handlers.VitalAuthoriseHandler;
@@ -14,6 +16,8 @@ import ai.vital.vitalservice.json.VitalServiceJSONMapper;
 
 class VitalJSEndpointsManager {
 
+	private final static Logger log = LoggerFactory.getLogger(VitalJSEndpointsManager.class)
+	
 	public final static String error_access_denied = 'error_access_denied'
 	
 	public final static String error_filter_config_invalid = 'error_filter_config_invalid'
@@ -39,11 +43,13 @@ class VitalJSEndpointsManager {
 			
 			authManager.container.logger.info ("Deploying endpoint for app: ${bean.appID}")
 			
+			final thisBean = bean
+			
 			String address = ENDPOINT_PREFIX + bean.appID
 			
 			authManager.vertx.eventBus.registerHandler(address) { Message message ->
 				
-				filterRequest(bean, message)
+				filterRequest(address, thisBean, message)
 				
 			}
 			
@@ -51,7 +57,9 @@ class VitalJSEndpointsManager {
 		
 	}
 	
-	public void filterRequest(AuthAppBean bean, Message msg) {
+	public void filterRequest(String address, AuthAppBean bean, Message msg) {
+		
+		log.info("Filter request: address ${address}, ${bean.appID}")
 		
 		Map jsonResponse = null
 		
