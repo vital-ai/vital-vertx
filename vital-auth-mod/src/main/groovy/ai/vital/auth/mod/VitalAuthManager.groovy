@@ -1203,7 +1203,8 @@ class VitalAuthManager extends Verticle {
 	protected void onUserURIObtained(AuthAppBean bean, Message message, String sessionID, String userURI) {
 		
 		
-		GraphObject object = VitalSigns.get().getFromCache(userURI)
+		//cache skipped
+		GraphObject object = null//VitalSigns.get().getFromCache(userURI)
 			
 		if(object == null) {
 			
@@ -1239,7 +1240,7 @@ class VitalAuthManager extends Verticle {
 					}
 				}
 				
-				VitalSigns.get().addToCache(object)
+//				VitalSigns.get().addToCache(object)
 				
 				message.reply([status: 'ok', sessionID: sessionID, object: VitalServiceJSONMapper.toJSON(object)])
 				
