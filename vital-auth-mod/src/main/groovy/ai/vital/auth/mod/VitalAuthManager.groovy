@@ -20,7 +20,6 @@ import ai.vital.auth.queries.Queries;
 import ai.vital.domain.CredentialsLogin;
 import ai.vital.domain.Login;
 import ai.vital.domain.AdminLogin
-import ai.vital.domain.SuperAdminLogin
 import ai.vital.domain.UserSession;
 import ai.vital.service.vertx.VitalServiceMod;
 import ai.vital.service.vertx.async.VitalServiceAsyncClient;
@@ -203,6 +202,10 @@ class VitalAuthManager extends Verticle {
 			return loginsSegment
 		}
 		
+		protected Class<? extends CredentialsLogin> _getSuperAdminLoginClass() { 
+			return null
+		}
+		
 		protected void _passMessage(Message msg) {
 			
 			vertx.eventBus.send(vitalService.address, msg.body()) { Message response ->
@@ -264,7 +267,7 @@ class VitalAuthManager extends Verticle {
 			
 				return adminLoginsSegment
 			
-			} else if(type == SuperAdminLogin.class.simpleName) {
+			} else if(type == 'SuperAdminLogin') {
 
 				if(!_supportsSuperAdmin()) {
 					message.reply([status: error_unknown_type, message: 'Unsupported type: ' + type])
@@ -537,40 +540,6 @@ class VitalAuthManager extends Verticle {
 	}
 	
 	
-	/*
-	protected void doStart() {
-		
-		 String loginsSegmentString = container.getConfig().get("loginsSegment")
-		 if(loginsSegmentString) {
-			 loginsSegment = VitalSegment.withId(loginsSegmentString)
-			 container.logger.info("loginsSegment: ${loginsSegmentString}")
-		 } else {
-			 container.logger.info("No 'loginsSegment' param - regular logins disabled")
-		 }
-		 
-		 String adminLoginsSegmentString = container.getConfig().get("adminLoginsSegment")
-		 if(adminLoginsSegmentString) {
-			 adminLoginsSegment = VitalSegment.withId(adminLoginsSegmentString)
-			 container.logger.info("adminLoginsSegment: ${adminLoginsSegmentString}")
-		 } else {
-			 container.logger.info("No 'adminLoginsSegment' param - admin logins disabled")
-		 }
-		 
-		 String superAdminLoginsSegmentString = container.getConfig().get("superAdminLoginsSegment")
-		 if(superAdminLoginsSegmentString) {
-			 superAdminLoginsSegment = VitalSegment.withId(superAdminLoginsSegmentString)
-			 container.logger.info("superAdminLoginsSegment: ${superAdminLoginsSegmentString}")
-		 } else {
-			 container.logger.info("No 'superAdminLoginsSegment' param - super admin logins disabled")
-		 }
- 
-		 if(loginsSegment == null && adminLoginsSegment == null && superAdminLoginsSegment == null) {
-			 throw new RuntimeException("At least one login type segment must be defined.")
-		 }
-		 
-	}
-	*/
-	
 	
 	protected String getAddress_login() {
 		return address_login
@@ -651,14 +620,14 @@ class VitalAuthManager extends Verticle {
 		
 			cls = AdminLogin.class
 		
-		} else if(type == SuperAdminLogin.class.simpleName) {
+		} else if(type == 'SuperAdminLogin') {
 		
 			if(!bean._supportsSuperAdmin()) {
 				message.reply([status: error_unknown_type, message: "This app does not support super admin logins"])
 				return
 			}
 		
-			cls = SuperAdminLogin.class
+			cls = bean._getSuperAdminLoginClass()
 		
 		} else {
 			message.reply([status: error_unknown_type, message: 'Unknown type: ' + type])
@@ -960,7 +929,7 @@ class VitalAuthManager extends Verticle {
 				
 			} else if(type == AdminLogin.class.simpleName) {
 				
-			} else if(type == SuperAdminLogin.class.simpleName) {
+			} else if(type == 'SuperAdminLogin') {
 				
 			} else {
 				container.logger.error("invalid session type: ${type}")
