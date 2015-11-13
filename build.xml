@@ -23,7 +23,11 @@
 	
 	<property name="dist.javadoc.service" value="${build.javadocs.zips}/vitalservice-vertx-mod-${dist.version}-javadocs.zip" />
 	
-	<property name="dist.javadoc.launcher" value="${build.javadocs.zips}/vital-vertx-launcher-${dist.version}-javadocs.zip" />
+	<property name="dist.javadoc.launcher" value="${build.javadocs.zips}/vital-vertx-launcher-1.0.0-javadocs.zip" />
+	
+	<property name="dist.javadoc.auth" value="${build.javadocs.zips}/vital-auth-mod-${dist.version}-javadocs.zip" />
+	
+	<property name="dist.javadoc.adminauth" value="${build.javadocs.zips}/vitaladmin-auth-mod-${dist.version}-javadocs.zip" />
 	
 	<property name="dist.javadoc" value="${basedir}/vital-vertx-${dist.version}-javadocs.zip" />
 	
@@ -60,11 +64,24 @@
 		
 		
 		<!-- launcher -->
-				<groovydoc author="true" destdir="${build.javadoc}" windowtitle="vital-vertx-launcher ${dist.version}" sourcepath="${basedir}/vital-vertx-launcher/src/main/groovy" charset="UTF-8">
+		<groovydoc author="true" destdir="${build.javadoc}" windowtitle="vital-vertx-launcher 1.0.0" sourcepath="${basedir}/vital-vertx-launcher/src/main/groovy" charset="UTF-8">
 		</groovydoc>
 		<jar destfile="${dist.javadoc.launcher}" basedir="${build.javadoc}"></jar>
-		
 		<delete dir="${build.javadoc}"/>
+		
+		<!-- auth -->
+		<groovydoc author="true" destdir="${build.javadoc}" windowtitle="vital-auth-mod ${dist.version}" sourcepath="${basedir}/vital-auth-mod/src/main/groovy" charset="UTF-8">
+		</groovydoc>
+		<jar destfile="${dist.javadoc.auth}" basedir="${build.javadoc}"></jar>
+		<delete dir="${build.javadoc}"/>
+		
+		
+		<!-- adminauth -->
+		<groovydoc author="true" destdir="${build.javadoc}" windowtitle="vitaladmin-auth-mod ${dist.version}" sourcepath="${basedir}/vitaladmin-auth-mod/src/main/groovy" charset="UTF-8">
+		</groovydoc>
+		<jar destfile="${dist.javadoc.adminauth}" basedir="${build.javadoc}"></jar>
+		<delete dir="${build.javadoc}"/>
+		
 		
 		
 		<zip destfile="${dist.javadoc}" basedir="${build.javadocs.zips}"></zip>
