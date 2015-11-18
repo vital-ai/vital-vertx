@@ -27,7 +27,7 @@ import ai.vital.vitalsigns.model.VitalServiceKey
 import ai.vital.vitalsigns.model.VitalTransaction
 import ai.vital.vitalsigns.model.container.GraphObjectsIterable
 import ai.vital.vitalsigns.model.property.URIProperty
-import static ai.vital.vitalservice.VitalService.NO_TRANSACTION
+import static ai.vital.vitalservice.VitalServiceConstants.NO_TRANSACTION
 
 /**
  * Asynchronous version of vital service on vertx

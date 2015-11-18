@@ -13,6 +13,7 @@ import ai.vital.service.vertx.binary.PayloadMessage;
 import ai.vital.service.vertx.binary.ResponseMessage;
 import ai.vital.vitalservice.ServiceOperations
 import ai.vital.vitalservice.VitalService
+import ai.vital.vitalservice.VitalServiceConstants;
 import ai.vital.vitalservice.VitalStatus
 import ai.vital.vitalservice.factory.VitalServiceFactory
 import ai.vital.vitalservice.query.VitalPathQuery
@@ -40,7 +41,7 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 	}
 
 	protected VitalTransaction transaction(VitalTransaction t) {
-		if(t == null || t.URI.equals(VitalService.NO_TRANSACTION.URI)) return null
+		if(t == null || t.URI.equals(VitalServiceConstants.NO_TRANSACTION.URI)) return null
 		return t
 	}
 	

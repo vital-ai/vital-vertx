@@ -11,7 +11,7 @@ import ai.vital.service.vertx.VitalServiceMod;
 import ai.vital.service.vertx.binary.PayloadMessage
 import ai.vital.service.vertx.binary.ResponseMessage;
 import ai.vital.vitalservice.ServiceOperations
-import static ai.vital.vitalservice.VitalService.NO_TRANSACTION;
+import static ai.vital.vitalservice.VitalServiceConstants.NO_TRANSACTION;
 import ai.vital.vitalservice.query.VitalPathQuery
 import ai.vital.vitalservice.query.VitalQuery
 import ai.vital.vitalsigns.java.VitalJavaSerializationUtils;

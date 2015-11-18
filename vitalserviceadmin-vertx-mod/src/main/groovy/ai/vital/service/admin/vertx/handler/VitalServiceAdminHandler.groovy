@@ -30,7 +30,7 @@ import ai.vital.vitalsigns.model.VitalSegment;
 import ai.vital.vitalsigns.model.VitalServiceKey;
 import ai.vital.vitalsigns.model.VitalTransaction;
 import ai.vital.vitalsigns.model.property.URIProperty
-import static ai.vital.vitalservice.VitalService.NO_TRANSACTION
+import static ai.vital.vitalservice.VitalServiceConstants.NO_TRANSACTION
 
 class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 
