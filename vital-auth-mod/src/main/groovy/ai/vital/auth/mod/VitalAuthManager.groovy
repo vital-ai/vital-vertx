@@ -346,7 +346,7 @@ class VitalAuthManager extends Verticle {
 			
 			if(!access) throw new RuntimeException("App ${appID} must provide 'access' param")
 			
-			AuthAppBean bean = createBean(access)
+			AuthAppBean bean = createBean(access, appCfg)
 			bean.authorizeAddress = getAddress_authorise()
 			bean.appID = appID
 			
@@ -381,10 +381,13 @@ class VitalAuthManager extends Verticle {
 					bean.adminLoginsSegment = VitalSegment.withId(adminLoginsSegmentParam)
 					
 				} else if(access == 'superadmin') {
-					
+
+					String superAdminLoginsSegmentParam = appCfg.get('superAdminLoginsSegment')
+					if(!superAdminLoginsSegmentParam) throw new RuntimeException("App ${appID} must provide super admin logins segment")
+									
 					if(!bean._supportsSuperAdmin()) throw new RuntimeException("This module does not support super admin mode");
 					
-					throw new RuntimeException("TODO! superadmin auth module support")	
+					bean.superAdminLoginsSegment = VitalSegment.withId(superAdminLoginsSegmentParam)
 					
 				} else {
 					
@@ -558,7 +561,7 @@ class VitalAuthManager extends Verticle {
 		return true
 	}
 	
-	protected AuthAppBean createBean(String access) {
+	protected AuthAppBean createBean(String access, Map<String, Object> appCfg) {
 		if(access == 'service') return new AuthAppBean()
 		throw new RuntimeException("Unsupported access: ${access}")
 	}

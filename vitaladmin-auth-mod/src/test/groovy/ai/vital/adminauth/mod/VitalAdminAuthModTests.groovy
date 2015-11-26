@@ -7,9 +7,9 @@ import org.vertx.java.core.AsyncResult
 import org.vertx.java.core.AsyncResultHandler
 import org.vertx.java.core.json.JsonObject
 
-import ai.vital.adminauth.mod.VitalAdminAuthManager;
+import ai.vital.adminauth.mod.VitalAdminAuthManager
+import ai.vital.domain.AdminLogin;
 import ai.vital.domain.CredentialsLogin;
-import ai.vital.domain.Login;
 import ai.vital.lucene.disk.service.config.VitalServiceLuceneDiskConfig;
 import ai.vital.mock.service.VitalServiceMock;
 import ai.vital.service.admin.vertx.VitalServiceAdminMod;
@@ -29,12 +29,13 @@ class VitalAdminAuthModTests extends AbstractVitalServiceAdminVertxTest {
 
 	private File luceneRoot
 	
-	protected Login login
+	protected AdminLogin login
+	
+	VitalApp app = VitalApp.withId("app")
 	
 	@Override
 	protected void setUp() throws Exception {
 		
-		VitalApp app = VitalApp.withId("app")
 		
 		//init the service here to avoid
 		VitalServiceLuceneDiskConfig cfg = new VitalServiceLuceneDiskConfig()
@@ -68,7 +69,7 @@ class VitalAdminAuthModTests extends AbstractVitalServiceAdminVertxTest {
 		
 		adminService.addSegment(app, sessionsSegment, true)
 		
-		login = new Login().generateURI(app)
+		login = new AdminLogin().generateURI(app)
 		login.username = "test"
 		login.password = PasswordHash.createHash("pass")
 		login.active = true
@@ -82,18 +83,33 @@ class VitalAdminAuthModTests extends AbstractVitalServiceAdminVertxTest {
 		
 		//once service mod is up setup the auth mod
 		
-		JsonObject modCfg = new JsonObject([
-			loginsSegment: loginsSegment.segmentID.toString(),
-			persistentSessions: true,
-			maxSessionsPerUser: 3,
-			expirationProlongMargin: 10000,
-			app: app.appID.toString()
+		Map modCfgMap = [
 			
-		])
+			apps: [
+				"${app.appID.toString()}": [
+					auth_enabled: true,
+					access: 'admin',
+					adminLoginsSegment: loginsSegment.segmentID.toString(),
+					sessionsSegment: sessionsSegment.segmentID.toString(),
+					persistentSessions: true,
+					maxSessionsPerUser: 3,
+					expirationProlongMargin: 10000,
+					filter: [
+						[ type: 'allow', method: 'ping' ],
+						[ type: 'allow', method: 'callFunction', function: 'vitalauth\\..*' ],
+						[ type: 'auth', method: 'listSegments' ],
+						[ type: 'deny', method: '.*']
+					]
+				]
+			]
+			
+		]
+		
+		JsonObject modCfg = new JsonObject(modCfgMap)
 		
 		ltp.delayed { ->
 		
-			ltp.pm.deployModule("vital-ai~vitaladmin-auth-mod~0.2.300", modCfg, 1, new AsyncResultHandler<String>() {
+			ltp.pm.deployModule("vital-ai~vitaladmin-auth-mod~0.2.301", modCfg, 1, new AsyncResultHandler<String>() {
 				
 				public void handle(AsyncResult<String> asyncResult) {
 					if (asyncResult.succeeded()) {
@@ -137,7 +153,7 @@ class VitalAdminAuthModTests extends AbstractVitalServiceAdminVertxTest {
 		
 		ltp.delayed { ->
 			
-			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_login, [type: Login.class.simpleName, username: 'test', password: 'pass']) { Message response ->
+			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_login, [appID: app.appID.toString(), type: AdminLogin.class.simpleName, username: 'test', password: 'pass']) { Message response ->
 				
 				body = response.body()
 				
@@ -167,7 +183,7 @@ class VitalAdminAuthModTests extends AbstractVitalServiceAdminVertxTest {
 		
 		ltp.delayed {
 			
-			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_authorise, [sessionID: sessionID]) { Message response ->
+			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_authorise, [appID: app.appID.toString(), sessionID: sessionID]) { Message response ->
 
 				body = response.body()
 				
@@ -196,7 +212,7 @@ class VitalAdminAuthModTests extends AbstractVitalServiceAdminVertxTest {
 				
 		ltp.delayed { ->
 			
-			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_logout, [type: Login.class.simpleName, sessionID: sessionID]) { Message response ->
+			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_logout, [appID: app.appID.toString(), type: AdminLogin.class.simpleName, sessionID: sessionID]) { Message response ->
 				
 				body = response.body()
 				
@@ -221,7 +237,7 @@ class VitalAdminAuthModTests extends AbstractVitalServiceAdminVertxTest {
 		
 		ltp.delayed { ->
 			
-			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_login, [type: Login.class.simpleName, username: 'test', password: 'passwrong']) { Message response ->
+			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_login, [appID: app.appID.toString(), type: AdminLogin.class.simpleName, username: 'test', password: 'passwrong']) { Message response ->
 				
 				body = response.body()
 				
@@ -244,7 +260,7 @@ class VitalAdminAuthModTests extends AbstractVitalServiceAdminVertxTest {
 
 		ltp.delayed {
 			
-			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_authorise, [sessionID: 'Login_111']) { Message response ->
+			ltp.vertx.eventBus.send(VitalAdminAuthManager.admin_address_authorise, [appID: app.appID.toString(), sessionID: 'Login_111']) { Message response ->
 
 				body = response.body()
 				

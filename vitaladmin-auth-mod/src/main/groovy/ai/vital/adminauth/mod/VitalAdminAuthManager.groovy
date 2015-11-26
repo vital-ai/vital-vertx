@@ -33,7 +33,7 @@ class VitalAdminAuthManager extends VitalAuthManager {
 
 	
 	@Override
-	protected AuthAppBean createBean(String access) {
+	protected AuthAppBean createBean(String access, Map<String, Object> appCfg) {
 		if(access == 'service') {
 			return new AuthAppBean()
 		}
