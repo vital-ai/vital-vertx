@@ -96,7 +96,7 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 		
 			checkParams(method, a, true, VitalTransaction.class)	
 		
-			service.commitTransaction(a[0])
+			response = service.commitTransaction(a[0])
 			
 		} else if(method == 'createTransaction') {
 		
