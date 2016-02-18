@@ -116,7 +116,7 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		ltp.delayed { ->
 		
-			ltp.pm.deployModule("vital-ai~vital-auth-mod~0.2.301", modCfg, 1, new AsyncResultHandler<String>() {
+			ltp.pm.deployModule("vital-ai~vital-auth-mod~0.2.302", modCfg, 1, new AsyncResultHandler<String>() {
 				
 				public void handle(AsyncResult<String> asyncResult) {
 					if (asyncResult.succeeded()) {
