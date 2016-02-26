@@ -30,6 +30,8 @@ class VitalJSEndpointsManager {
 	
 	public final static String SESSION_LOGIN = '_sessionLogin'
 	
+	public final static String SESSION_ID = '_sessionID'
+	
 	public VitalAuthManager authManager
 	
 	public VitalJSEndpointsManager(VitalAuthManager authManager) {
@@ -139,7 +141,7 @@ class VitalJSEndpointsManager {
 								
 								//pass the login to handlers to avoid the redundancy of checking the session twice
 								body.put(SESSION_LOGIN, authBody.get('object'))
-								
+								body.put(SESSION_ID, sessionID)
 								//authorized
 								bean._passMessage(msg)
 								return
@@ -186,6 +188,7 @@ class VitalJSEndpointsManager {
 							
 							//pass the login to handlers to avoid the redundancy of checking the session twice
 							body.put(SESSION_LOGIN, authBody.get('object'))
+							body.put(SESSION_ID, sessionID)
 							
 							//authorized
 							bean._passMessage(msg)
