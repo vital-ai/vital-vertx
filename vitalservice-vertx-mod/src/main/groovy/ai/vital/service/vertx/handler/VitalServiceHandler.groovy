@@ -1,7 +1,8 @@
 package ai.vital.service.vertx.handler
 
-import java.util.Map;
+import java.util.Map
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -122,12 +123,10 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'deleteFile') {
 		
-			unsupported(method)
-		
-//				checkParams(method, a, true, URIProperty.class, String.class)
-//				
-//				response = service.deleteFile(a[0], a[1])
-				
+			checkParams(method, a, true, URIProperty.class, String.class)
+
+			response = service.deleteFile(a[0], a[1])
+			
 		} else if(method == 'deleteObject') {
 		
 			checkParams(method, a, true, VitalTransaction.class, GraphObject.class)
@@ -150,17 +149,27 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 		
 			unsupported(method)
 		
-//				checkParams(method, a, true, URIProperty.class, String.class, OutputStream.class, Boolean.class)
-//				
-//				response = service.downloadFile(a[0], a[1], a[2], a[3])
+			//stream replaced with localFilePath
+			checkParams(method, a, true, URIProperty.class, String.class, String.class, Boolean.class)
+			
+			OutputStream fos = null
+			
+			try {
+				
+				fos = new BufferedOutputStream(new FileOutputStream(new File(a[2])))
+				
+				//always close output stream
+				response = service.downloadFile(a[0], a[1], fos, true)
+				
+			} finally {
+				IOUtils.closeQuietly(fos)
+			}
 			
 		} else if(method == 'fileExists') {
 			
-			unsupported(method)
-			
-//				checkParams(method, a, true, URIProperty.class, String.class)
-//				
-//				response = service.fileExists(a[0], a[1])
+			checkParams(method, a, true, URIProperty.class, String.class)
+
+			response = service.fileExists(a[0], a[1])
 			
 		} else if(method == 'generateURI') {
 			
@@ -254,11 +263,9 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 			}
 		} else if(method == 'listFiles') {
 		
-			unsupported(method)
-		
-//				checkParams(method, a, true, String.class)
-//				
-//				response = service.listFiles(a[0])
+			checkParams(method, a, true, String.class)
+				
+			response = service.listFiles(a[0])
 			
 		} else if(method == 'listDatabaseConnections') {
 		
@@ -353,11 +360,22 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'uploadFile') {
 		
-			unsupported(method)
-		
-//				checkParams(method, a, true, URIProperty.class, String.class, InputStream.class, Boolean.class)
-//				
-//				response = service.uploadFile(a[0], a[1], a[2], a[3])
+			//String
+			checkParams(method, a, true, URIProperty.class, String.class, String.class, Boolean.class)
+				
+			//stream replaced with localFilePath
+			InputStream fis = null
+			
+			try {
+				
+				fis = new BufferedInputStream(new FileInputStream(new File(a[2])))
+				
+				//always close output stream
+				response = service.uploadFile(a[0], a[1], fis, a[3])
+				
+			} finally {
+				IOUtils.closeQuietly(fis)
+			}
 	
 		} else if(method == 'validate') {
 			

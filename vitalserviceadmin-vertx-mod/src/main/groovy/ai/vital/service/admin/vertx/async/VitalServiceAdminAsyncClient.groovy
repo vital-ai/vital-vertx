@@ -153,9 +153,10 @@ class VitalServiceAdminAsyncClient {
 		impl(closure, 'deleteExpandedObjects', [transaction, app, graphObjects, pathQuery])
 	}
 	
-//	void deleteFile(App app, URIProperty uri, String name, Closure closure) {
-//		impl(closure, 'deleteFile', [app, uri, name])
-//	}
+	//VitalStatus
+	void deleteFile(VitalApp app, URIProperty uri, String name, Closure closure) {
+		impl(closure, 'deleteFile', [app, uri, name])
+	}
 	
 	void deleteObject(VitalApp app, GraphObject graphObject, Closure closure) {
 		impl(closure, 'deleteObject', [NO_TRANSACTION, app, graphObject])
@@ -177,11 +178,15 @@ class VitalServiceAdminAsyncClient {
 		impl(closure, 'doOperations', [app, serviceOps])
 	}
 	
-//	void downloadFile(App app, URIProperty uri, String name, OutputStream outputStream, boolean closeOutputStream, Closure closure)
+	//VitalStatus
+	void downloadFile(VitalApp app, URIProperty uri, String name, String localFilePath, boolean closeOutputStream, Closure closure) {
+		impl(closure, "downloadFile", [app, uri, name, localFilePath, closeOutputStream])
+	}
 	
-//	void fileExists(App app, URIProperty uri, String name, Closure closure) {
-//		impl(closure, 'fileExists', [app, uri, name])
-//	}
+	//VitalStatus
+	void fileExists(VitalApp app, URIProperty uri, String name, Closure closure) {
+		impl(closure, 'fileExists', [app, uri, name])
+	}
 	
 	void generateURI(VitalApp app, Class<? extends GraphObject> clazz, Closure closure) {
 		impl(closure, 'generateURI', [app, clazz])
@@ -272,9 +277,10 @@ class VitalServiceAdminAsyncClient {
 		impl(closure, 'listDatabaseConnections', [app])
 	}
 	
-//	void listFiles(App app, String filePath, Closure closure) {
-//		impl(closure, 'listFiles', [app, filePath])
-//	}
+	//ResultList
+	void listFiles(VitalApp app, String filePath, Closure closure) {
+		impl(closure, 'listFiles', [app, filePath])
+	}
 	
 	void listSegments(VitalApp app, Closure closure) {
 		impl(closure, 'listSegments', [app])
@@ -367,7 +373,10 @@ class VitalServiceAdminAsyncClient {
 		impl(closure, 'sendEvents', [app, events, waitForDelivery])
 	}
 	
-//	uploadFile(App, URIProperty, String, InputStream, boolean, Closure closure)
+	//VitalStatus
+	void uploadFile(VitalApp app, URIProperty uri, String name, String localFilePath, boolean overwrite, Closure closure) {
+		impl(closure, "uploadFile", [app, uri, name, localFilePath, overwrite])
+	}
 	
 	void validate(Closure closure) {
 		impl(closure, 'validate', [])

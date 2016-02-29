@@ -150,9 +150,10 @@ class VitalServiceAsyncClient {
 	}
 	
 	
-//	void deleteFile(URIProperty uri, String name, Closure closure) {
-//		impl(closure, 'deleteFile', [uri, name])
-//	}
+	//VitalStatus
+	void deleteFile(URIProperty uri, String name, Closure closure) {
+		impl(closure, 'deleteFile', [uri, name])
+	}
 	
 	
 	//VitalStatus
@@ -181,11 +182,15 @@ class VitalServiceAsyncClient {
 		impl(closure, 'doOperations', [serviceOps])
 	}
 	
-//	void downloadFile(URIProperty uri, String name, OutputStream outputStream, boolean closeOutputStream, Closure closure)
+	//VitalStatus
+	void downloadFile(URIProperty uri, String name, String localFilePath, boolean closeOutputStream, Closure closure) {
+		impl(closure, "downloadFile", [uri, name, localFilePath, closeOutputStream])
+	}
 	
-//	void fileExists(URIProperty uri, String name, Closure closure) {
-//		impl(closure, 'fileExists', [uri, name])
-//	}
+	//VitalStatus
+	void fileExists(URIProperty uri, String name, Closure closure) {
+		impl(closure, 'fileExists', [uri, name])
+	}
 	
 	void generateURI(Class<? extends GraphObject> clazz, Closure closure) {
 		impl(closure, 'generateURI', [clazz])
@@ -284,9 +289,10 @@ class VitalServiceAsyncClient {
 		impl(closure, 'listDatabaseConnections', [])
 	}
 	
-//	void listFiles(String filePath, Closure closure) {
-//		impl(closure, 'listFiles', [filePath])
-//	}
+	//ResultList
+	void listFiles(String filePath, Closure closure) {
+		impl(closure, 'listFiles', [filePath])
+	}
 	
 	
 	//List<VitalSegment>
@@ -379,7 +385,10 @@ class VitalServiceAsyncClient {
 		impl(closure, 'setDefaultSegmentName', [defaultSegment])
 	}
 	
-//	uploadFile(URIProperty, String, InputStream, boolean, Closure closure)
+	//VitalStatus
+	void uploadFile(URIProperty uri, String name, String localFilePath, boolean overwrite, Closure closure) {
+		impl(closure, "uploadFile", [uri, name, localFilePath, overwrite])
+	}
 	
 	void validate(Closure closure) {
 		impl(closure, 'validate', [])

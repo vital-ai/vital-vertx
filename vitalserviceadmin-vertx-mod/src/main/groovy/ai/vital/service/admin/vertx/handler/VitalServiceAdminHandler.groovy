@@ -2,8 +2,9 @@ package ai.vital.service.admin.vertx.handler
 
 import java.util.Map;
 
-import groovy.lang.Closure;
+import groovy.lang.Closure
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -147,11 +148,9 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'deleteFile') {
 		
-			unsupported(method)
-		
-//				checkParams(method, a, true, App.class, URIProperty.class, String.class)
-//				
-//				response = service.deleteFile(a[0], a[1], a[2])
+			checkParams(method, a, true, VitalApp.class, URIProperty.class, String.class)
+				
+			response = service.deleteFile(a[0], a[1], a[2])
 				
 		} else if(method == 'deleteObject') {
 		
@@ -173,17 +172,28 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'downloadFile') {
 
-			unsupported(method)			
-//				checkParams(method, a, true, App.class, URIProperty.class, String.class, OutputStream.class, Boolean.class)
-//				response = service.downloadFile(a[0], a[1], a[2], a[3], a[4])
+			//stream replaced with localFilePath
+			checkParams(method, a, true, VitalApp.class, URIProperty.class, String.class, String.class, Boolean.class)
+			
+			OutputStream fos = null
+			
+			try {
+				
+				fos = new BufferedOutputStream(new FileOutputStream(new File(a[3])))
+				
+				//always close output stream
+				response = service.downloadFile(a[0], a[1], a[2], fos, true)
+				
+			} finally {
+				IOUtils.closeQuietly(fos)
+			}
+			
 			
 		} else if(method == 'fileExists') {
 		
-			unsupported(method)
-		
-//				checkParams(method, a, true, App.class, URIProperty.class, String.class)
-//				
-//				response = service.fileExists(a[0], a[1], a[2])
+			checkParams(method, a, true, VitalApp.class, URIProperty.class, String.class)
+				
+			response = service.fileExists(a[0], a[1], a[2])
 			
 		} else if(method == 'generateURI') {
 		
@@ -290,11 +300,9 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'listFiles') {
 		
-			unsupported(method)
-		
-//				checkParams(method, a, true, App.class, String.class)
-//				
-//				response = service.listFiles(a[0], a[1])
+			checkParams(method, a, true, VitalApp.class, String.class)
+				
+			response = service.listFiles(a[0], a[1])
 		
 		} else if(method == 'listSegments') {
 		
@@ -404,13 +412,24 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 			response = service.sendEvents(a[0], a[1], a[2])
 			
 		} else if(method == 'uploadFile') {
-		
-			unsupported(method)
-		
-//				checkParams(method, a, true, App.class, URIProperty.class, String.class, InputStream.class, Boolean.class)
-//				
-//				response = service.uploadFile(a[0], a[1], a[2], a[3], a[4])
 
+			//String
+			checkParams(method, a, true, VitalApp.class, URIProperty.class, String.class, String.class, Boolean.class)
+				
+			//stream replaced with localFilePath
+			InputStream fis = null
+			
+			try {
+				
+				fis = new BufferedInputStream(new FileInputStream(new File(a[3])))
+				
+				//always close output stream
+				response = service.uploadFile(a[0], a[1], a[2], fis, a[4])
+				
+			} finally {
+				IOUtils.closeQuietly(fis)
+			}
+		
 		} else if(method == 'validate') {
 		
 			checkParams(method, a, true)
