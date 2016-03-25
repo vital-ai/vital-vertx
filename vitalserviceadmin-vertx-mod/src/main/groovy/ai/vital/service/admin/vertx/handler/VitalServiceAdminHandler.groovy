@@ -21,6 +21,7 @@ import ai.vital.vitalservice.admin.VitalServiceAdmin;
 import ai.vital.vitalservice.factory.VitalServiceFactory
 import ai.vital.vitalservice.query.VitalPathQuery
 import ai.vital.vitalservice.query.VitalQuery
+import ai.vital.vitalsigns.VitalSigns;
 import ai.vital.vitalsigns.java.VitalJavaSerializationUtils;
 import ai.vital.vitalsigns.meta.GraphContext
 import ai.vital.vitalsigns.model.GraphObject
@@ -197,25 +198,53 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'generateURI') {
 		
-			checkParams(method, a, true, VitalApp.class, Class.class)
+			if( checkParams(method, a, false, VitalApp.class, Class.class) ) {
+				
+				response = service.generateURI(a[0], a[1])
+				
+			} else if(checkParams(method, a, false, VitalApp.class, String.class)) {
 			
-			response = service.generateURI(a[0], a[1])
+				String classURI = a[1]
+				
+				Class c = VitalSigns.get().getClass(URIProperty.withString(classURI))
+				if(c == null) throw new RuntimeException("Class not found for URI: " + classURI)
+				
+				response = service.generateURI(a[0], c)
+			
+			} else {
+				throw new RuntimeException("${method} expects VitalApp and either a class object or class URI string")
+			}
+			
 			
 		} else if(method == 'get') {
 		
 			if(
 				checkParams(method, a, false, VitalApp.class, GraphContext.class, List.class) ||
-				checkParams(method, a, false, VitalApp.class, GraphContext.class, URIProperty.class) ) {
+				checkParams(method, a, false, VitalApp.class, String.class, List.class) ||
+				checkParams(method, a, false, VitalApp.class, GraphContext.class, URIProperty.class) ||
+				checkParams(method, a, false, VitalApp.class, String.class, URIProperty.class)
+				 ) {
 				
+				 if(a[1] instanceof String) {
+					 a[1] = GraphContext.valueOf(a[1])
+				 }
+				 
 				response = service.get(a[0], a[1], a[2])
 				
 			} else if(
 				checkParams(method, a, false, VitalApp.class, GraphContext.class, List.class, Boolean.class) ||
+				checkParams(method, a, false, VitalApp.class, String.class, List.class, Boolean.class) ||
 				checkParams(method, a, false, VitalApp.class, GraphContext.class, List.class, List.class) ||
+				checkParams(method, a, false, VitalApp.class, String.class, List.class, List.class) ||
 				checkParams(method, a, false, VitalApp.class, GraphContext.class, URIProperty.class, Boolean.class) ||
-				checkParams(method, a, false, VitalApp.class, GraphContext.class, URIProperty.class, List.class)
+				checkParams(method, a, false, VitalApp.class, String.class, URIProperty.class, Boolean.class) ||
+				checkParams(method, a, false, VitalApp.class, GraphContext.class, URIProperty.class, List.class) ||
+				checkParams(method, a, false, VitalApp.class, String.class, URIProperty.class, List.class)
 			) {
 			
+				if(a[1] instanceof String) {
+					a[1] = GraphContext.valueOf(a[1])
+				}
 				response = service.get(a[0], a[1], a[2], a[3])
 			} else {
 				throw new RuntimeException("${method} expects different parameters, see API")
