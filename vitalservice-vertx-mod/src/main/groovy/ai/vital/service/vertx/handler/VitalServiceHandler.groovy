@@ -19,6 +19,7 @@ import ai.vital.vitalservice.VitalStatus
 import ai.vital.vitalservice.factory.VitalServiceFactory
 import ai.vital.vitalservice.query.VitalPathQuery
 import ai.vital.vitalservice.query.VitalQuery
+import ai.vital.vitalsigns.VitalSigns;
 import ai.vital.vitalsigns.java.VitalJavaSerializationUtils;
 import ai.vital.vitalsigns.meta.GraphContext
 import ai.vital.vitalsigns.model.GraphObject
@@ -173,25 +174,54 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'generateURI') {
 			
-			checkParams(method, a, true, Class.class)
+			if( checkParams(method, a, false, Class.class) ) {
 				
-			response = service.generateURI(a[0])
+				response = service.generateURI(a[0])
+				
+			} else if(checkParams(method, a, false, String.class)) {
+			
+				String classURI = a[0]
+				
+				Class c = VitalSigns.get().getClass(URIProperty.withString(classURI))
+				if(c == null) throw new RuntimeException("Class not found for URI: " + classURI)
+				
+				response = service.generateURI(c)
+			
+			} else {
+				throw new RuntimeException("${method} expects either a class object or class URI string")
+			}
 			
 		} else if(method == 'get') {
 		
 			if(
 				checkParams(method, a, false, GraphContext.class, List.class) ||
-				checkParams(method, a, false, GraphContext.class, URIProperty.class) ) {
+				checkParams(method, a, false, String.class, List.class) ||
+				checkParams(method, a, false, GraphContext.class, URIProperty.class) ||
+				checkParams(method, a, false, String.class, URIProperty.class)) {
+				
+				//convert string to GraphContext enum
+				if(a[0] instanceof String) {
+					a[0] = GraphContext.valueOf(a[0])
+				}
 				
 				response = service.get(a[0], a[1])
 				
 			} else if(
 				checkParams(method, a, false, GraphContext.class, List.class, Boolean.class) ||
+				checkParams(method, a, false, String.class, List.class, Boolean.class) ||
 				checkParams(method, a, false, GraphContext.class, List.class, List.class) ||
+				checkParams(method, a, false, String.class, List.class, List.class) ||
 				checkParams(method, a, false, GraphContext.class, URIProperty.class, Boolean.class) ||
-				checkParams(method, a, false, GraphContext.class, URIProperty.class, List.class)
+				checkParams(method, a, false, String.class, URIProperty.class, Boolean.class) ||
+				checkParams(method, a, false, GraphContext.class, URIProperty.class, List.class) ||
+				checkParams(method, a, false, String.class, URIProperty.class, List.class)
 			) {
 			
+				//convert string to GraphContext enum
+				if(a[0] instanceof String) {
+					a[0] = GraphContext.valueOf(a[0])
+				}
+				
 				response = service.get(a[0], a[1], a[2])
 			} else {
 				throw new RuntimeException("${method} expects different parameters, see API")
