@@ -5,11 +5,11 @@ import ai.vital.domain.CredentialsLogin;
 import ai.vital.domain.CredentialsLogin_PropertiesHelper;
 import ai.vital.domain.UserSession;
 import ai.vital.domain.UserSession_PropertiesHelper;
-import ai.vital.domain.properties.Property_hasUsername;
 import ai.vital.query.querybuilder.VitalBuilder;
 import ai.vital.vitalservice.query.VitalSelectQuery
 import ai.vital.vitalservice.query.VitalSortProperty;
 import ai.vital.vitalsigns.model.VitalSegment
+import ai.vital.vitalsigns.model.properties.Property_hasUsername;
 import ai.vital.vitalsigns.model.property.URIProperty;
 
 class Queries {
