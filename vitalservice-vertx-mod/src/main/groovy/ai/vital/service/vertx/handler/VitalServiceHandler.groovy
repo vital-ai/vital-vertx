@@ -148,8 +148,6 @@ class VitalServiceHandler extends AbstractVitalServiceHandler {
 			
 		} else if(method == 'downloadFile') {
 		
-			unsupported(method)
-		
 			//stream replaced with localFilePath
 			checkParams(method, a, true, URIProperty.class, String.class, String.class, Boolean.class)
 			

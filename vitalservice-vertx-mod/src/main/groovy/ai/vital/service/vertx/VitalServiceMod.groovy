@@ -64,12 +64,12 @@ public class VitalServiceMod extends Verticle {
 				
 				//for inline config
 				Object serviceCfgO = cfg.get("config")
-				if(serviceCfgO  != null && !(serviceCfgO  instanceof Map)) throw new RuntimeException("service 'config' object must be a map")
-				Map<String, Object> serviceCfg = serviceCfgO
+				if(serviceCfgO  != null && !(serviceCfgO  instanceof String)) throw new RuntimeException("service 'config' object must be a string")
+				String serviceCfgString = serviceCfgO
 				
-				if(profile == null && serviceCfg == null) throw new RuntimeException("Expected service 'profile' string or 'config' object")
+				if(profile == null && serviceCfgString == null) throw new RuntimeException("Expected service 'profile' string or 'config' string")
 				
-				if(profile != null && serviceCfg != null) throw new RuntimeException("Cannot use both service 'profile' string and 'config' object")
+				if(profile != null && serviceCfgString != null) throw new RuntimeException("Cannot use both service 'profile' string and 'config' string")
 
 				String appID = null
 				
@@ -86,13 +86,11 @@ public class VitalServiceMod extends Verticle {
 					
 				} else {
 				
-					throw new RuntimeException("TODO, add service config parser")
-				
-//					appID = serviceCfg.get('appID')	
-//				
-//					VitalServiceFactory.
-//					
-//					if( ! appID ) throw new RuntimeException("appID not set in inline service config")
+					serviceConfig = VitalServiceFactory.parseConfigString(serviceCfgString)
+					
+					if(serviceConfig.getApp() == null) throw new RuntimeException("No app in parsed service config from string")
+					
+					appID = serviceConfig.getApp().appID.toString()
 					
 				}
 				

@@ -24,6 +24,7 @@ import ai.vital.vitalservice.query.VitalQuery
 import ai.vital.vitalsigns.VitalSigns;
 import ai.vital.vitalsigns.java.VitalJavaSerializationUtils;
 import ai.vital.vitalsigns.meta.GraphContext
+import ai.vital.vitalsigns.model.DatabaseConnection;
 import ai.vital.vitalsigns.model.GraphObject
 import ai.vital.vitalsigns.model.VITAL_Event
 import ai.vital.vitalsigns.model.VitalApp;
@@ -61,6 +62,12 @@ class VitalServiceAdminHandler extends AbstractVitalServiceHandler {
 			checkParams(method, a, true, VitalApp.class)
 			
 			response = service.addApp(a[0])
+			
+		} else if(method == 'addDatabaseConnection') {
+		
+			checkParams(method, a, true, VitalApp.class, DatabaseConnection.class)
+		
+			response = service.addDatabaseConnection(a[0], a[1])
 			
 		} else if(method == 'addSegment') {
 		
