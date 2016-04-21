@@ -93,6 +93,18 @@ class VitalAuthManager extends Verticle {
 	protected static final long DEFAULT_SESSION_TIMEOUT = 30 * 60 * 1000;
 	
 	
+	static Login guestLogin = new Login()
+	
+	static {
+		guestLogin.URI = "urn:guestLogin"
+		guestLogin.active = true
+		guestLogin.emailVerified = true
+		guestLogin.locked = false
+		guestLogin.name = "Guest Login"
+		guestLogin.password = PasswordHash.createHash("guest")
+		guestLogin.username = "guest"
+	}
+	
 	static class AuthAppBean {
 		
 		boolean authEnabled = false
@@ -652,7 +664,7 @@ class VitalAuthManager extends Verticle {
 		
 		VitalSelectQuery selectQuery = Queries.selectTypedLoginQuery(cls, loginsSegment, username)
 
-		bean._executeSelectQuery(selectQuery) { ResponseMessage selectQueryReply ->
+		def onUserSelectQueryResponse = { ResponseMessage selectQueryReply ->
 
 			if( selectQueryReply.exceptionMessage ) {
 				message.reply([status: error_vital_service, message: 'VitalService error: ' + selectQueryReply.exceptionType + ' - ' + selectQueryReply.exceptionMessage])
@@ -870,6 +882,19 @@ class VitalAuthManager extends Verticle {
 			}
 			
 		}
+		
+		ResultList rl = new ResultList()
+		if(username == "guest") {
+			rl.addResult(guestLogin)
+		}
+		
+		//prepare fake response message
+		ResponseMessage rm = new ResponseMessage()
+		rm.setResponse(rl)
+		onUserSelectQueryResponse(rm)
+		
+//		bean._executeSelectQuery(selectQuery, onUserSelectQueryResponse)
+		
 	}
 
 	protected void doLogout(Message message) {
@@ -1180,7 +1205,7 @@ class VitalAuthManager extends Verticle {
 			
 		if(object == null) {
 			
-			bean._getRemoteObject(userURI) { ResponseMessage getObjectMsg ->
+			def onUserObjectClosure = { ResponseMessage getObjectMsg ->
 				
 				if (getObjectMsg.exceptionMessage) {
 					message.reply([status: error_vital_service, message: 'VitalService error: ' + getObjectMsg.exceptionType + ' - ' + getObjectMsg.exceptionMessage])
@@ -1218,7 +1243,21 @@ class VitalAuthManager extends Verticle {
 				
 			}
 			
+//			bean._getRemoteObject(userURI, onUserObjectClosure)
+			
+			ResultList rl = new ResultList()
+			
+			if(userURI == guestLogin.URI) {
+				rl.addResult(guestLogin)
+			}
+			
+			ResponseMessage rm = new ResponseMessage()
+			rm.setResponse(rl)
+			
+			onUserObjectClosure(rm)
+			
 			return
+			
 		}
 		
 		message.reply([status: 'ok', sessionID: sessionID, object: VitalServiceJSONMapper.toJSON(object)])
