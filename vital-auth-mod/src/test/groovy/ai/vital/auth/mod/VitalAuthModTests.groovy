@@ -10,9 +10,11 @@ import org.vertx.java.core.json.JsonObject
 import ai.vital.auth.handlers.VitalAuthoriseHandler;
 import ai.vital.domain.CredentialsLogin;
 import ai.vital.domain.Login;
-import ai.vital.domain.UserSession;
+import ai.vital.domain.UserSession
+import ai.vital.domain.UserSession_PropertiesHelper;
 import ai.vital.lucene.disk.service.config.VitalServiceLuceneDiskConfig;
 import ai.vital.mock.service.VitalServiceMock;
+import ai.vital.query.querybuilder.VitalBuilder
 import ai.vital.service.vertx.VitalServiceMod;
 import ai.vital.vitalservice.VitalService;
 import ai.vital.vitalservice.admin.VitalServiceAdmin;
@@ -23,7 +25,8 @@ import ai.vital.vitalsigns.model.VitalApp
 import ai.vital.vitalsigns.model.VitalSegment;
 import ai.vital.vitalsigns.model.VitalServiceAdminKey;
 import ai.vital.vitalsigns.model.VitalServiceKey;
-import ai.vital.vitalsigns.model.VitalServiceRootKey;
+import ai.vital.vitalsigns.model.VitalServiceRootKey
+import groovy.json.JsonOutput;
 import junit.framework.TestCase;
 
 class VitalAuthModTests extends AbstractVitalServiceVertxTest {
@@ -33,6 +36,8 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 	protected Login login
 	
 	VitalApp app = VitalApp.withId("app")
+	
+	VitalService service = null
 	
 	@Override
 	protected void setUp() throws Exception {
@@ -74,7 +79,7 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		
 		//the service should be ready
-		VitalService service = VitalServiceFactory.openService(serviceKey, cfg, VitalServiceMod.SERVICE_NAME_PREFIX + app.appID.toString())
+		service = VitalServiceFactory.openService(serviceKey, cfg, VitalServiceMod.SERVICE_NAME_PREFIX + app.appID.toString())
 		
 		login = new Login().generateURI(app)
 		login.username = "test"
@@ -101,6 +106,7 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 					persistentSessions: true,
 					maxSessionsPerUser: 3,
 					expirationProlongMargin: 10000,
+					session_timeout: 1800000,
 					filter: [
 						[ type: 'allow', method: 'ping' ],
 						[ type: 'allow', method: 'callFunction', function: 'vitalauth\\..*' ],
@@ -145,6 +151,8 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 	
 	public void testAuthFlow() {
 		
+		println "Testing auth flow"
+		
 		doTestAuthFlow1()
 		
 	}
@@ -155,8 +163,12 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		ltp.delayed { ->
 			
+			println "sending login request"
+			
 			ltp.vertx.eventBus.send(VitalAuthManager.address_login, [appID: app.appID.toString(), type: Login.class.simpleName, username: 'test', password: 'pass']) { Message response ->
 				
+				println "body received"
+			
 				body = response.body()
 				
 				ltp.resume()
@@ -424,6 +436,8 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		assertEquals(body.message, 'ok', body.status)
 		
+		println JsonOutput.toJson(body.response)
+		
 		ResultList rl = VitalServiceJSONMapper.fromJSON(body.response)
 		
 		assertEquals(2, rl.results.size())
@@ -432,9 +446,98 @@ class VitalAuthModTests extends AbstractVitalServiceVertxTest {
 		
 		assertTrue(rl.results[1].graphObject instanceof UserSession)
 		
-		
+		doTestSessionExpiration()
 		
 	}
 	
+	private void doTestSessionExpiration() {
+
+		
+		Map body = null
+		
+		ltp.delayed { ->
+			
+			println "sending login request"
+			
+			ltp.vertx.eventBus.send(VitalAuthManager.address_login, [appID: app.appID.toString(), type: Login.class.simpleName, username: 'test', password: 'pass']) { Message response ->
+				
+				println "body received"
+			
+				body = response.body()
+				
+				ltp.resume()
+				
+			}
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(body.message, "ok", body.status)
+		
+		String sessionID = body.sessionID
+						
+		CredentialsLogin rLogin = VitalServiceJSONMapper.fromJSON(body.object)
+						
+		assertEquals(login, rLogin)
+						
+
+		body = null
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus.send(VitalAuthManager.address_authorise, [appID: app.appID.toString(), sessionID: sessionID]) { Message response ->
+
+				body = response.body()
+				
+				ltp.resume()
+				
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+
+		assertEquals("ok", body.status)
+		
+		assertEquals(sessionID, body.sessionID)
+		
+		
+		//expire the session now
+		ResultList rl = service.query(new VitalBuilder().query{
+			SELECT {
+				
+				value segments: ['*']
+				
+				node_constraint { UserSession.class }
+				
+				node_constraint { ((UserSession_PropertiesHelper)UserSession.props()).sessionID.equalTo(sessionID) }
+				
+			}
+		}.toQuery())
+		
+		UserSession session = rl.first()
+		session.timestamp = System.currentTimeMillis() - 24L*3600L*1000L
+		service.save(session)
+		
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus.send(VitalAuthManager.address_authorise, [appID: app.appID.toString(), sessionID: sessionID]) { Message response ->
+
+				body = response.body()
+				
+				ltp.resume()
+				
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+	
+		assertEquals("error_denied", body.status)
+		
+	}
 	
 }

@@ -92,6 +92,18 @@ class VitalAuthManager extends Verticle {
 
 	protected static final long DEFAULT_SESSION_TIMEOUT = 30 * 60 * 1000;
 	
+	static Login guestLogin = new Login()
+	
+	static {
+		guestLogin.URI = "urn:guestLogin"
+		guestLogin.active = true
+		guestLogin.emailVerified = true
+		guestLogin.locked = false
+		guestLogin.name = "Guest Login"
+		guestLogin.password = PasswordHash.createHash("guest")
+		guestLogin.username = "guest"
+	}
+	
 	
 	static class AuthAppBean {
 		
@@ -105,10 +117,6 @@ class VitalAuthManager extends Verticle {
 		
 		protected long sessionTimeout;
 		
-		protected long adminSessionTimeout;
-		
-		protected long superAdminSessionTimeout;
-		
 		protected VitalSegment loginsSegment = null
 				
 		protected VitalSegment adminLoginsSegment = null
@@ -120,7 +128,11 @@ class VitalAuthManager extends Verticle {
 		protected int maxSessionsPerUser = 1 
 				
 		protected Boolean persistentSessions = null
-				
+		
+		//only for 
+		protected Boolean mockedLogin = null
+		
+		//in new version this param means how ofset the session timestamp should be refreshed when accessed
 		protected Integer expirationProlongMargin = null
 				
 		protected VitalServiceAsyncClient vitalService = null
@@ -136,6 +148,10 @@ class VitalAuthManager extends Verticle {
 		protected Vertx vertx		
 		
 		protected String authorizeAddress
+		
+		protected CredentialsLogin getGuestLogin() {
+			return VitalAuthManager.guestLogin
+		}
 		
 		protected void _initService(Vertx vertx) {
 			
@@ -293,14 +309,12 @@ class VitalAuthManager extends Verticle {
 	
 	
 	private static final class LoginInfo {
-		final long timerID;
 		final String sessionID;
-		final long expirationDate;
+		long sessionTimestamp;
 
-		private LoginInfo(long timerID, String sessionID, long expDate) {
-			this.timerID = timerID;
+		private LoginInfo(String sessionID, long sessionTimestamp) {
 			this.sessionID = sessionID;
-			this.expirationDate = expDate
+			this.sessionTimestamp = sessionTimestamp
 		}
 		
 	}
@@ -365,20 +379,23 @@ class VitalAuthManager extends Verticle {
 					
 					if(!bean._supportsNormal()) throw new RuntimeException("This module does not support regular login mode");
 					
-					String loginsSegmentParam = appCfg.get('loginsSegment')
-							if(!loginsSegmentParam) throw new RuntimeException("App ${appID} must provide logins segment")
-					
-					bean.loginsSegment = VitalSegment.withId(loginsSegmentParam)
-					
+					if(!bean.mockedLogin) {
+						String loginsSegmentParam = appCfg.get('loginsSegment')
+						if(!loginsSegmentParam) throw new RuntimeException("App ${appID} must provide logins segment")
+						
+						bean.loginsSegment = VitalSegment.withId(loginsSegmentParam)
+					}
 					
 				} else if(access == 'admin') {
 					
 					if(!bean._supportsAdmin()) throw new RuntimeException("This module does not support admin mode");
 					
-					String adminLoginsSegmentParam = appCfg.get('adminLoginsSegment')
-							if(!adminLoginsSegmentParam) throw new RuntimeException("App ${appID} must provide admin logins segment")
-					
-					bean.adminLoginsSegment = VitalSegment.withId(adminLoginsSegmentParam)
+					if(!bean.mockedLogin) {
+						String adminLoginsSegmentParam = appCfg.get('adminLoginsSegment')
+								if(!adminLoginsSegmentParam) throw new RuntimeException("App ${appID} must provide admin logins segment")
+						
+						bean.adminLoginsSegment = VitalSegment.withId(adminLoginsSegmentParam)
+					}
 					
 				} else if(access == 'superadmin') {
 
@@ -401,6 +418,17 @@ class VitalAuthManager extends Verticle {
 							throw new RuntimeException("App ${appID}: No persistentSessions param.")
 						}
 				container.logger.info "App: ${appID} persistent sessions: ${bean.persistentSessions}"
+				
+				
+				bean.mockedLogin = appCfg.get('mockedLogin')
+				if(bean.mockedLogin == null) bean.mockedLogin = false
+				
+				if(bean.mockedLogin.booleanValue()) {
+					container.logger.warn("vital-auth-mode running in mocked-login mode")
+					bean.loginsSegment = null
+					bean.adminLoginsSegment = null
+					bean.superAdminLoginsSegment = null
+				}
 				
 				
 				Integer maxSessionsPerUserParam = appCfg.get("maxSessionsPerUser")
@@ -430,15 +458,15 @@ class VitalAuthManager extends Verticle {
 				
 				Object timeout = appCfg.get('session_timeout')
 						
-						if (timeout != null) {
-							if (timeout instanceof Long) {
-								bean.sessionTimeout = (Long)timeout;
-							} else if (timeout instanceof Integer) {
-								bean.sessionTimeout = (Integer)timeout;
-							}
-						} else {
-							bean.sessionTimeout = DEFAULT_SESSION_TIMEOUT;
-						}
+				if (timeout != null) {
+					if (timeout instanceof Long) {
+						bean.sessionTimeout = (Long)timeout;
+					} else if (timeout instanceof Integer) {
+						bean.sessionTimeout = (Integer)timeout;
+					}
+				} else {
+					bean.sessionTimeout = DEFAULT_SESSION_TIMEOUT;
+				}
 				
 				container.logger.info "App: ${appID} session Timeout: ${bean.sessionTimeout}"
 				
@@ -455,9 +483,6 @@ class VitalAuthManager extends Verticle {
 				}
 				
 			}
-			
-			
-			
 			
 			
 			//filter is a list of rules
@@ -491,27 +516,9 @@ class VitalAuthManager extends Verticle {
 			
 			beans.put(appID, bean)
 			
-//			#depending on the access type the proper segment is necessary, service/admin/superadmin
-//			access: service
-//		  
-//			loginsSegment: logins
-//			
-//			persistentSessions: true
-//			
-//			maxSessionsPerUser: 3
-//			
-//			expirationProlongMargin: 10000
-			
 		}
 		
 		
-//		doStart()
-		
-		
-		
-		
-
-
 
 		EventBus eb = vertx.eventBus
 		
@@ -640,7 +647,7 @@ class VitalAuthManager extends Verticle {
 		if(!validateOtherFields(message)) return;
 		
 		VitalSegment loginsSegment = bean._getTargetSegment()
-		if(loginsSegment == null) return
+//		if(loginsSegment == null) return
 		
 //		if(segment == null) {
 //			message.reply([status: error_unsupported_type, message: (String) "login type: ${type} unsupported"])
@@ -649,11 +656,9 @@ class VitalAuthManager extends Verticle {
 
 		
 		final long _timeoutValue = bean.sessionTimeout
+
+		def onUserSelectQueryResponse = { ResponseMessage selectQueryReply ->
 		
-		VitalSelectQuery selectQuery = Queries.selectTypedLoginQuery(cls, loginsSegment, username)
-
-		bean._executeSelectQuery(selectQuery) { ResponseMessage selectQueryReply ->
-
 			if( selectQueryReply.exceptionMessage ) {
 				message.reply([status: error_vital_service, message: 'VitalService error: ' + selectQueryReply.exceptionType + ' - ' + selectQueryReply.exceptionMessage])
 				return
@@ -703,7 +708,6 @@ class VitalAuthManager extends Verticle {
 				
 				def onSessionsCountChecked = {
 					
-					
 					bean._generateURI(UserSession.class) { ResponseMessage generateReply ->
 
 						if (generateReply.exceptionMessage) {
@@ -718,9 +722,10 @@ class VitalAuthManager extends Verticle {
 						
 						session.timestamp = System.currentTimeMillis()
 						session.sessionType = type
-						if(_timeoutValue > 0) {
-							session.expirationDate = new Date(System.currentTimeMillis() + _timeoutValue) 
-						}
+						//expiration date no longer in use
+//						if(_timeoutValue > 0) {
+//							session.expirationDate = new Date(System.currentTimeMillis() + _timeoutValue) 
+//						}
 						
 						session.loginURI = new URIProperty(login.URI)
 						session.sessionID = type + '_' + UUID.randomUUID().toString()
@@ -771,12 +776,8 @@ class VitalAuthManager extends Verticle {
 							
 							sessions.sort { UserSession s1, UserSession s2 ->
 								
-								//expiration date is more important
-								Date d1 = s1.expirationDate?.getDate()
-								Date d2 = s2.expirationDate?.getDate()
-								
-								if(d1 == null) d1 = s1.timestamp != null ? new Date(s1.timestamp.longValue()) : new Date(0L)
-								if(d2 == null) d2 = s2.timestamp != null ? new Date(s2.timestamp.longValue()) : new Date(0L)
+								Date d1 = s1.timestamp != null ? new Date(s1.timestamp.longValue()) : new Date(0L)
+								Date d2 = s2.timestamp != null ? new Date(s2.timestamp.longValue()) : new Date(0L)
 								
 								return d2.compareTo(d1)
 								
@@ -789,7 +790,6 @@ class VitalAuthManager extends Verticle {
 							}
 							
 							//delete old sessions
-
 							bean._delete(sessionsToRemove) { ResponseMessage deleteSessionsReply ->
 								if (deleteSessionsReply.exceptionMessage) {
 									message.reply([status: error_vital_service, message: 'VitalService error: ' + deleteSessionsReply.exceptionType + ' - ' + deleteSessionsReply.exceptionMessage])
@@ -820,35 +820,18 @@ class VitalAuthManager extends Verticle {
 						//sort the list 
 						List<LoginInfo> infos = new ArrayList<LoginInfo>(info)
 						infos.sort { LoginInfo l1, LoginInfo l2 ->
-							return l1.expirationDate.compareTo(l2.expirationDate)	
+							return l1.sessionTimestamp.compareTo(l2.sessionTimestamp)	
 						}
 								
 						while(infos.size() > bean.maxSessionsPerUser - 1) {
 							//logout any
 							LoginInfo expInfo = infos.remove(0)
-							logout(bean, message, expInfo.sessionID) { boolean loggedOut->
-								
-							}
+							bean.sessions.remove(expInfo.sessionID)
 						}
 					}
 				}
 				
 				String sessionID = UUID.randomUUID().toString()
-				
-				Long timerID = null
-				
-				Long expDate = null
-				
-				if(_timeoutValue > 0) {
-					
-					expDate = System.currentTimeMillis() + _timeoutValue
-							
-					timerID = vertx.setTimer(_timeoutValue) { Long _timerID -> 
-						logout(bean, message, sessionID) { boolean loggedOut->
-						}
-					}
-				}
-				
 				
 				//session expires after some time	
 				
@@ -863,13 +846,34 @@ class VitalAuthManager extends Verticle {
 					bean.logins.put(login.URI, info);
 				} 
 				
-				info.add(new LoginInfo(timerID, sessionID, expDate))
+				info.add(new LoginInfo(sessionID, System.currentTimeMillis()))
 				
 				message.reply([status: 'ok', message: 'logged in', sessionID: sessionID, object: VitalServiceJSONMapper.toJSON(login)])
 				
 			}
 			
 		}
+		
+		if(bean.mockedLogin) {
+			
+			ResultList rl = new ResultList()
+			if(username == "guest") {
+				rl.addResult(guestLogin)
+			}
+			
+			//prepare fake response message
+			ResponseMessage rm = new ResponseMessage()
+			rm.setResponse(rl)
+			onUserSelectQueryResponse(rm)
+			
+		} else {
+		
+			VitalSelectQuery selectQuery = Queries.selectTypedLoginQuery(cls, loginsSegment, username)
+		
+			bean._executeSelectQuery(selectQuery, onUserSelectQueryResponse)
+			
+		}
+		
 	}
 
 	protected void doLogout(Message message) {
@@ -1097,57 +1101,43 @@ class VitalAuthManager extends Verticle {
 				return
 			}
 			
-			Date expDate = session.expirationDate?.getDate()
-			if(expDate != null && expDate.time < System.currentTimeMillis()) {
+			Long timestamp = session.timestamp ? session.timestamp.longValue() : null
+			
+			long _timeoutValue = bean.sessionTimeout
+			
+			if(timestamp != null && _timeoutValue > 0L && ( System.currentTimeMillis() - timestamp.longValue() ) > _timeoutValue) {
 				//expired
 				message.reply([status: error_denied, message: 'Session expired, session: ' + sessionID])
 				return
 				//delete it now ? 
-				
 			}
 			
 			String userURI = session.loginURI.get()
 			
-			if(expDate == null || bean.expirationProlongMargin <= 0) {
-				onUserURIObtained(message, sessionID, userURI)
+			//don't refresh session timestamp
+			if(bean.expirationProlongMargin <= 0 || timestamp == null || System.currentTimeMillis() - timestamp < bean.expirationProlongMargin) {
+				onUserURIObtained(bean, message, sessionID, userURI)
 				return
 			}
 			
 			
-			//check if expDate needs to be 
-			
-			long _timeoutValue = bean.sessionTimeout
-			
-			//assumed to be in the past
-			long lastUpdateTimestamp = expDate.time - _timeoutValue
-			
-			long ctime = System.currentTimeMillis() 
-			
-			if( _timeoutValue <= 0 || ( ctime - lastUpdateTimestamp > bean.expirationProlongMargin) ) {
+ 			//refresh the session timestamp
+			session.timestamp = System.currentTimeMillis() 
 				
-				//refresh the session
-				session.expirationDate = _timeoutValue > 0 ? new Date( ctime + _timeoutValue ) : null 
+			bean._save(sessionsSegment, [session]) { ResponseMessage saveSessionReply ->
 				
-				bean._save(sessionsSegment, [session]) { ResponseMessage saveSessionReply ->
-					
-					if (saveSessionReply.exceptionMessage) {
-						message.reply([status: error_vital_service, message: 'VitalService error: ' + saveSessionReply.exceptionType + ' - ' + saveSessionReply.exceptionMessage])
-						return
-					}
-					
-					ResultList rl = saveSessionReply.response
-					
-					if(rl.status.status != VitalStatus.Status.ok) {
-						message.reply([status: error_vital_service, message: 'VitalService error: ' + rl.status])
-						return
-					}
-					
-					onUserURIObtained(bean, message, sessionID, userURI)
-					
+				if (saveSessionReply.exceptionMessage) {
+					message.reply([status: error_vital_service, message: 'VitalService error: ' + saveSessionReply.exceptionType + ' - ' + saveSessionReply.exceptionMessage])
+					return
 				}
 				
-			} else {
-			
+				ResultList rl = saveSessionReply.response
+				
+				if(rl.status.status != VitalStatus.Status.ok) {
+					message.reply([status: error_vital_service, message: 'VitalService error: ' + rl.status])
+					return
+				}
+				
 				onUserURIObtained(bean, message, sessionID, userURI)
 				
 			}
@@ -1179,8 +1169,9 @@ class VitalAuthManager extends Verticle {
 		GraphObject object = null//VitalSigns.get().getFromCache(userURI)
 			
 		if(object == null) {
-			
-			bean._getRemoteObject(userURI) { ResponseMessage getObjectMsg ->
+			def onUserObjectClosure = { ResponseMessage getObjectMsg ->
+				
+//			bean._getRemoteObject(userURI) { ResponseMessage getObjectMsg ->
 				
 				if (getObjectMsg.exceptionMessage) {
 					message.reply([status: error_vital_service, message: 'VitalService error: ' + getObjectMsg.exceptionType + ' - ' + getObjectMsg.exceptionMessage])
@@ -1216,6 +1207,28 @@ class VitalAuthManager extends Verticle {
 				
 				message.reply([status: 'ok', sessionID: sessionID, object: VitalServiceJSONMapper.toJSON(object)])
 				
+			}
+			
+			
+			if(bean.mockedLogin) {
+				
+				ResultList rl = new ResultList()
+	
+				CredentialsLogin guestLogin = bean.getGuestLogin()
+				
+				if(userURI == guestLogin.URI) {
+					rl.addResult(guestLogin)
+				}
+	
+				ResponseMessage rm = new ResponseMessage()
+				rm.setResponse(rl)
+	
+				onUserObjectClosure(rm)
+				
+			} else {
+			
+				bean._getRemoteObject(userURI, onUserObjectClosure)
+			
 			}
 			
 			return

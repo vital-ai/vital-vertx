@@ -66,6 +66,8 @@ abstract class AbstractVitalServiceVertxTest extends TestCase {
 			}
 		});
 	
+//		ltp.waitNow()
+	
 	}
 	
 	
