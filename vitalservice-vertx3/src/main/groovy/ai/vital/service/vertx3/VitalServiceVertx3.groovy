@@ -32,7 +32,7 @@ public class VitalServiceVertx3 extends GroovyVerticle {
 	
 	public void start() {
 		
-		log.info "Starting Vital Service Mod instance"
+		log.info "Starting Vital Service Vertx3 instance"
 		
 		context = vertx.getOrCreateContext()
 		

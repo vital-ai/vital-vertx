@@ -1,2 +1,2 @@
-vitalservice-vertx-mod
-======================
+vitalservice-vertx3
+===================
