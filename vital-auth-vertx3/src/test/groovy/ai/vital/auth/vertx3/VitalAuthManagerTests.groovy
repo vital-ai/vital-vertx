@@ -174,8 +174,6 @@ class VitalAuthManagerTests extends AbstractVitalServiceVertxTest {
 					
 				println "body received"
 			
-				body = response.body()
-				
 				ltp.resume()
 				
 			}
