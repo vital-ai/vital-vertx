@@ -389,6 +389,9 @@ class VitalAuthManager extends GroovyVerticle {
 			//
 			if(authEnabled) {
 				
+				bean.mockedLogin = appCfg.get('mockedLogin')
+				if(bean.mockedLogin == null) bean.mockedLogin = false
+				
 				if(access == 'service') {
 					
 					if(!bean._supportsNormal()) throw new RuntimeException("This verticle does not support regular login mode");
@@ -433,9 +436,6 @@ class VitalAuthManager extends GroovyVerticle {
 				}
 				log.info "App: ${appID} persistent sessions: ${bean.persistentSessions}"
 				
-				
-				bean.mockedLogin = appCfg.get('mockedLogin')
-				if(bean.mockedLogin == null) bean.mockedLogin = false
 				
 				if(bean.mockedLogin.booleanValue()) {
 					log.warn("vital-auth-mode running in mocked-login mode")
