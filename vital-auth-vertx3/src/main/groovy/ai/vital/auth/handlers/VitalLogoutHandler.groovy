@@ -2,7 +2,7 @@ package ai.vital.auth.handlers
 
 import groovy.lang.Closure
 
-import io.vertx.groovy.core.Future
+import io.vertx.core.Future
 import io.vertx.groovy.core.eventbus.Message
 import java.util.Map;
 
