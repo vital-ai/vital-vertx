@@ -1,23 +1,22 @@
 package ai.vital.vertx3
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
+import io.vertx.groovy.core.Vertx
+
+import java.nio.charset.StandardCharsets
+import java.util.Map.Entry
+
+import org.apache.commons.io.IOUtils
 import org.slf4j.Logger
-import org.slf4j.LoggerFactory;
+import org.slf4j.LoggerFactory
 
 import ai.vital.service.vertx3.async.VitalServiceAsyncClient
 import ai.vital.service.vertx3.binary.ResponseMessage
-import ai.vital.vitalservice.VitalStatus;
-import ai.vital.vitalservice.query.ResultList;
+import ai.vital.vitalservice.VitalStatus
+import ai.vital.vitalservice.query.ResultList
 import ai.vital.vitalsigns.VitalSigns
 import ai.vital.vitalsigns.command.patterns.JarFileInfo
-import ai.vital.vitalsigns.command.patterns.JsonSchemaFileInfo;
-import ai.vital.vitalsigns.conf.VitalSignsConfig.DomainsSyncLocation;
-import ai.vital.vitalsigns.model.DomainModel;
-import io.vertx.groovy.core.Vertx
-
-import java.nio.charset.StandardCharsets;
-import java.util.Map.Entry
+import ai.vital.vitalsigns.command.patterns.JsonSchemaFileInfo
+import ai.vital.vitalsigns.model.DomainModel
 
 class DomainsSyncImplementation {
 

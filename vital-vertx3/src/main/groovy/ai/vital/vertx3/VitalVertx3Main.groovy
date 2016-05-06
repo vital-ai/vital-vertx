@@ -1,7 +1,7 @@
 package ai.vital.vertx3
 
 import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigFactory
 
 /**
  * Main entry point for improved vertx3 apps
@@ -13,19 +13,19 @@ class VitalVertx3Main {
 
 	static def main(args) {
 		
-		if(args.length != 2) {
-			println "usage: vitalvertx3 <appJar> <conf_file>"
-			println "     appJar=local for development or single fat jar mode, or external classpath otherwise"
+		if(args.length < 1 || args.length > 2) {
+			println "usage: vitalvertx3 <conf_file> [appClasspath]"
+			println "     optional appClasspath, 'local' (default) for development or single fat jar mode, or external classpath otherwise"
 			System.exit(1)
 			return
 		}
 		
-		String appJar = args[0]
+		String appJar = args.length > 1 ? args[1] : 'local'
 		boolean local = appJar == 'local'
 		println "appJar: ${appJar}"
 		println "local mode ? ${local}"
 		
-		File confFile = new File(args[1])
+		File confFile = new File(args[0])
 		println "Config file: ${confFile.absolutePath}"
 		
 		if(!confFile.exists()) {

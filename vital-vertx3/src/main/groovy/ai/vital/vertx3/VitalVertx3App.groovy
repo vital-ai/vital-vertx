@@ -1,28 +1,24 @@
 package ai.vital.vertx3
 
-import java.util.Map.Entry
-
-import org.junit.After;
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory;
-
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigList;
-import com.typesafe.config.ConfigObject
-
-import ai.vital.service.vertx3.VitalServiceVertx3
-import ai.vital.service.vertx3.async.VitalServiceAsyncClient;
-import ai.vital.vertx3.VitalVertx3App.VerticleConfig
-import ai.vital.vitalservice.EndpointType;
-import ai.vital.vitalservice.VitalService;
-import ai.vital.vitalsigns.VitalSigns;
-import ai.vital.vitalsigns.classloader.VitalSignsRootClassLoader
-import ai.vital.vitalsigns.conf.VitalSignsConfig
-import ai.vital.vitalsigns.conf.VitalSignsConfig.DomainsStrategy
-import ai.vital.vitalsigns.conf.VitalSignsConfig.DomainsSyncMode;
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.groovy.core.Vertx
+
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
+import ai.vital.service.vertx3.VitalServiceVertx3
+import ai.vital.service.vertx3.async.VitalServiceAsyncClient
+import ai.vital.vitalservice.EndpointType
+import ai.vital.vitalservice.VitalService
+import ai.vital.vitalsigns.VitalSigns
+import ai.vital.vitalsigns.classloader.VitalSignsRootClassLoader
+import ai.vital.vitalsigns.conf.VitalSignsConfig
+import ai.vital.vitalsigns.conf.VitalSignsConfig.DomainsStrategy
+import ai.vital.vitalsigns.conf.VitalSignsConfig.DomainsSyncMode
+
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigList
 
 class VitalVertx3App {
 
@@ -138,10 +134,9 @@ class VitalVertx3App {
 			
 			if(instances != null) {
 				vc.instances = instances.intValue()
-				if(vc.instances < 0) throw new RuntimeException("Instances count must be >= 0 : ${vc.instances}, 0 for available current cpu count")
-				if(vc.instances == 0) {
-					vc.instances = Runtime.getRuntime().availableProcessors()
-				}
+				if(vc.instances <= 0) throw new RuntimeException("Instances count must be > 0 : ${vc.instances}, if not set the number of available cpus is applied")
+			} else {
+				vc.instances = Runtime.getRuntime().availableProcessors()
 			}
 						
 			Boolean reloadable = _v.get("reloadable")

@@ -16,14 +16,16 @@ verticles: [
   {
     name: "groovy:ai.vital.service.vertx3.VitalServiceVertx3"
     worker: true
-    instances: 0
+    #if not set the number of cpus
+    #instances: 1
     reloadable: false
   },
   
   {
     name: "groovy:ai.vital.auth.vertx3.VitalAuthManager"
     worker: false
-    instances: 0
+    #if not set the number of cpus
+    #instances: 1
     reloadable: false
   },
 
@@ -37,7 +39,8 @@ verticles: [
   {
     name: "groovy:verticle2
     worker: false
-    instances: 0
+    #if not set the number of cpus
+    #instances: 1
     reloadable: true
   }
 
