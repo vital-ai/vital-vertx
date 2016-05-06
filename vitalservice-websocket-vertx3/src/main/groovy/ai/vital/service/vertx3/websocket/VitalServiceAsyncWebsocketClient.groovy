@@ -311,11 +311,6 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	
 	}
 
-	@Override
-	public void query(VitalQuery query, Closure closure) {
-		closure(new ResponseMessage("method_not_supported", "Use query with query defined as string - json serialization limitation"))
-	}	
-	
 	public void query(String queryString, Closure closure) {
 		impl(closure, 'query', [queryString])
 	}
