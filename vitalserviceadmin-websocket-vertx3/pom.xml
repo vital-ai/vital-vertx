@@ -2,7 +2,7 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>vital-ai</groupId>
-	<artifactId>vitalserviceadmin-vertx3</artifactId>
+	<artifactId>vitalserviceadmin-websocket-vertx3</artifactId>
 	<version>0.2.303</version>
 
   	<properties>
@@ -87,7 +87,21 @@
 				</executions>
 			</plugin>
 
+
+			<!-- uncomment this if there's at least 1 non-provided dependency -->
+			<!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-shade-plugin</artifactId> 
+				<version>2.3</version> <executions> <execution> <phase>package</phase> <goals> 
+				<goal>shade</goal> </goals> <configuration> <shadedArtifactAttached>true</shadedArtifactAttached> 
+				<shadedClassifierName>with-dependencies</shadedClassifierName> <artifactSet> 
+				<excludes> <exclude>junit:*</exclude> </excludes> </artifactSet> <transformers> 
+				<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" 
+				/> </transformers> </configuration> </execution> </executions> </plugin> -->
+
 		</plugins>
+
+
+
+
 
 	</build>
 
@@ -96,24 +110,11 @@
 		<!-- vitalservice-vertx-mod -->
 		<dependency>
 			<groupId>vital-ai</groupId>
-			<artifactId>vitalservice-vertx3</artifactId>
-			<version>${vital.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>vital-ai</groupId>
 			<artifactId>vitalserviceadmin-base-vertx3</artifactId>
 			<version>${vital.version}</version>
 		</dependency>
 
 		<!-- tests -->
-		<dependency>
-			<groupId>vital-ai</groupId>
-			<artifactId>vital-lucene</artifactId>
-			<version>${vital.version}</version>
-			<scope>test</scope>
-		</dependency>
-		
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>

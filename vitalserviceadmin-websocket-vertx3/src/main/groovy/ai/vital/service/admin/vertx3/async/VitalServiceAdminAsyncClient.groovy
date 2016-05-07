@@ -1,7 +1,7 @@
-package ai.vital.service.vertx3.websocket
+package ai.vital.service.admin.vertx3.async
 
+import static ai.vital.vitalservice.VitalServiceConstants.NO_TRANSACTION
 import groovy.json.JsonOutput
-import groovy.lang.Closure;
 import io.vertx.core.Handler
 import io.vertx.groovy.core.Vertx
 import io.vertx.groovy.core.http.HttpClient
@@ -12,26 +12,25 @@ import org.codehaus.jackson.map.ObjectMapper
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-import ai.vital.service.vertx3.async.VitalServiceAsyncClientBase
 import ai.vital.service.vertx3.binary.ResponseMessage
 import ai.vital.vitalservice.VitalStatus
 import ai.vital.vitalservice.json.VitalServiceJSONMapper
-import ai.vital.vitalservice.query.VitalQuery;
-import ai.vital.vitalsigns.model.VitalApp
 
 /**
- * External Asynchronous version of vital service on vertx over websocket
+ * Asynchronous version of vital service on vertx
  * All closures are called with {@link ai.vital.service.vertx.binary.ResponseMessage}
  * @author Derek
  *
  */
-class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
+class VitalServiceAdminAsyncWebsocketClient extends VitalServiceAdminAsyncClientBase {
 
-	private final static Logger log = LoggerFactory.getLogger(VitalServiceAsyncWebsocketClient.class)
+	private final static Logger log = LoggerFactory.getLogger(VitalServiceAdminAsyncWebsocketClient.class)
+	
+	String address
 	
 	String endpointURL = null
 	
-	Handler<Throwable> completeHandler	
+	Handler<Throwable> completeHandler
 	
 	HttpClient httpClient
 	
@@ -49,14 +48,11 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	String appSessionID
 	
 	/**
-	 * @param addressPrefix 'vitalservice.' or 'endpoint.'
+	 * @param address, 'vitalserviceadmin' or 'endpoint.[appId]' if behind auth filter
 	 */
-	VitalServiceAsyncWebsocketClient(Vertx vertx, VitalApp app, String addressPrefix, String endpointURL) {
+	VitalServiceAdminAsyncWebsocketClient(Vertx vertx, String address, String endpointURL) {
 		super(vertx)
-		if(app == null) throw new NullPointerException("Null app")
-		String appID = app.appID?.toString()
-		if(appID == null) throw new NullPointerException("Null appID")
-		this.address = addressPrefix + appID
+		this.address = address
 		this.vertx = vertx
 		this.endpointURL = endpointURL
 		
@@ -119,7 +115,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 					if(callback == null) {
 						log.warn("Callback not found for address ${replyAddress} - timed out")
 						return
-					} 
+					}
 					
 					Map body = envelope.body
 					
@@ -143,7 +139,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 						rm.exceptionMessage = msg
 						callback(rm)
 						return
-					} 
+					}
 					
 					Map responseObject = body.response
 					
@@ -176,7 +172,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 				}
 				
 //				println frame.isText()
-//				
+//
 //				log.info("Frame received: ${frame} ${textHandlerID}")
 				
 				
@@ -291,7 +287,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 			address: this.address,
 			headers: [:],//mergeHeaders(this.defaultHeaders, headers),
 			body: VitalServiceJSONMapper.toJSON(data),
-			replyAddress: replyAddress 
+			replyAddress: replyAddress
 			/*
 			var replyAddress = makeUUID();
 			envelope.replyAddress = replyAddress;
@@ -299,7 +295,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 			*/
 		];
 	
-		callbacksMap.put(replyAddress, closure)	
+		callbacksMap.put(replyAddress, closure)
 	
 //			byte[] bytes = SerializationUtils.serialize(new PayloadMessage(method, args))
 //			Buffer buffer = Buffer.buffer(bytes.length)
@@ -311,4 +307,6 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	public void query(String queryString, Closure closure) {
 		impl(closure, 'query', [queryString])
 	}
+
+	
 }

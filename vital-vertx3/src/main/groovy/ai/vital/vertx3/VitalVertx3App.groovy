@@ -26,12 +26,18 @@ class VitalVertx3App {
 	
 	public final static String VITALSERVICEVERTX3 = 'groovy:' + VitalServiceVertx3.class.canonicalName
 	
+	public final static String VITALSERVICEADMINVERTX3 = 'groovy:ai.vital.service.admin.vertx3.VitalServiceAdminVertx3'
+	
 	public final static String VITALAUTHVERTX3 = 'groovy:ai.vital.auth.vertx3.VitalAuthManager'
+	
+	public final static String VITALADMINAUTHVERTX3 = 'groovy:ai.vital.adminauth.vertx3.VitalAdminAuthManager'
 	
 	public Map globalConfig
 	
 	//predefined config objects ? 
 	public Map vitalserviceConfig
+	
+	public Map vitalserviceAdminConfig
 	
 	public Map vitalauthConfig
 
@@ -104,6 +110,10 @@ class VitalVertx3App {
 		
 		vitalserviceConfig = globalConfig.get('vitalservice')
 		
+		vitalserviceAdminConfig = globalConfig.get('vitalserviceadmin')
+		
+		vitalauthConfig = globalConfig.get('vitalauth')
+		
 		List<VerticleConfig> _l = []
 		
 		boolean vitalServiceFound = false
@@ -153,17 +163,27 @@ class VitalVertx3App {
 				}
 				
 				//check if config available
-				vitalserviceConfig = globalConfig.get('vitalservice')
 				if(vitalserviceConfig == null) throw new RuntimeException("${VITALSERVICEVERTX3} verticle requires vitalservice config object")
 				
 			}
 			
-			if(name == VITALAUTHVERTX3) {
+			if(name == VITALSERVICEADMINVERTX3) {
 				
-				if(vc.reloadable) throw new RuntimeException("${VITALAUTHVERTX3} verticle cannot be set as reloadable")
+				if(vc.reloadable) throw new RuntimeException("${VITALSERVICEADMINVERTX3} verticle cannot be set as reloadable")
+				if(!vc.worker) {
+					log.warn("${VITALSERVICEADMINVERTX3} not configured as worker")
+				}
 				
-				vitalauthConfig = globalConfig.get('vitalauth')
-				if(vitalauthConfig == null) throw new RuntimeException("${VITALAUTHVERTX3} verticle requires auth config object")
+				//check if config available
+				if(vitalserviceAdminConfig == null) throw new RuntimeException("${VITALSERVICEADMINVERTX3} verticle requires vitalserviceadmin config object")
+				
+			}
+			
+			if(name == VITALAUTHVERTX3 || name == VITALADMINAUTHVERTX3) {
+				
+				if(vc.reloadable) throw new RuntimeException("${name} verticle cannot be set as reloadable")
+				
+				if(vitalauthConfig == null) throw new RuntimeException("${name} verticle requires auth config object")
 				
 			}
 			
@@ -390,8 +410,10 @@ class VitalVertx3App {
 		
 		if(vc.name == VITALSERVICEVERTX3) {
 			cfg = vitalserviceConfig
-		} else if(vc.name == VITALAUTHVERTX3) {
+		} else if(vc.name == VITALAUTHVERTX3 || vc.name == VITALADMINAUTHVERTX3) {
 			cfg = vitalauthConfig
+		} else if(vc.name == VITALSERVICEADMINVERTX3) {
+			cfg = vitalserviceAdminConfig
 		}
 				
 		vertx.deployVerticle(vc.name, [

@@ -1,5 +1,8 @@
 package ai.vital.adminauth.vertx3
 
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory;
+
 import ai.vital.auth.vertx3.VitalAuthManager.AuthAppBean
 import ai.vital.service.admin.vertx3.VitalServiceAdminVertx3;
 import ai.vital.service.admin.vertx3.async.VitalServiceAdminAsyncClient
@@ -10,11 +13,14 @@ import ai.vital.vitalsigns.meta.GraphContext;
 import ai.vital.vitalsigns.model.GraphObject
 import ai.vital.vitalsigns.model.VitalSegment
 import ai.vital.vitalsigns.model.property.URIProperty
+import io.vertx.core.Future
 import io.vertx.groovy.core.Vertx
 import io.vertx.groovy.core.eventbus.Message
 
 public class AdminAuthAppBean extends AuthAppBean {
 
+		private final static Logger log = LoggerFactory.getLogger(AdminAuthAppBean.class)
+	
 		VitalServiceAdmin vitalServiceAdminSync  
 		
 		VitalServiceAdminAsyncClient vitalServiceAdmin
@@ -74,11 +80,18 @@ public class AdminAuthAppBean extends AuthAppBean {
 
 		@Override
 		protected void _passMessage(Message msg) {
-			vertx.eventBus.send(VitalServiceAdminVertx3.ADDRESS, msg.body()) { Message response ->
+			
+			vertx.eventBus().send(VitalServiceAdminVertx3.ADDRESS, msg.body()) { Future<Message> response ->
 				
-				msg.reply(response.body())
+				if(!response.succeeded()) {
+					log.error(response.cause()?.localizedMessage, response.cause())
+					return
+				}
+				
+				msg.reply(response.result().body())
 				
 			}
+			
 		}
 
 		@Override
