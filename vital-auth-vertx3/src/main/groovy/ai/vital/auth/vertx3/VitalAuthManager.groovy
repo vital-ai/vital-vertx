@@ -1167,7 +1167,7 @@ class VitalAuthManager extends GroovyVerticle {
 		// The user is always authorised if they are logged in
 
 		if( ! userURI ) {
-			message.reply([status: error_denied, message: 'Session not found/expired, session: ' + userURI])
+			message.reply([status: error_denied, message: 'Session not found/expired, session: ' + sessionID])
 			return
 		}
 	

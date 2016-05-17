@@ -3,12 +3,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>vital-ai</groupId>
 	<artifactId>vital-vertx3</artifactId>
-	<version>0.2.303</version>
+	<version>0.2.304</version>
 
   	<properties>
     	<!-- the main class -->
     	<exec.mainClass>ai.vital.vertx3.VitalVertx3Main</exec.mainClass>
-    	<vital.version>0.2.303</vital.version>
+    	<vital.version>0.2.304</vital.version>
     	<vertx.version>3.2.1</vertx.version>
   	</properties>
 
