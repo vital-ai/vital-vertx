@@ -39,6 +39,8 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	
 	Map<String, Closure> callbacksMap = [:]
 	
+	Map<String, Closure> streamCallbacksMap = [:]
+	
 	ObjectMapper objectMapper = null
 	
 	Long periodicID = null
@@ -66,7 +68,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	
 	protected void sendPing() {
 		webSocket.writeFinalTextFrame(JsonOutput.toJson([type: 'ping']))
-		log.info("Ping sent")
+		log.debug("Ping sent")
 	}
 	
 	public void	connect(Handler<Throwable> completeHandler) {
@@ -98,7 +100,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 			
 			webSocket.frameHandler { WebSocketFrame frame ->
 				
-//				if( log.isDebugEnabled() ) log.debug("Frame received: ${frame}")
+				if( log.isDebugEnabled() ) log.debug("Frame received: ${frame}")
 //				callbacksMap.get()
 				String response = frame.textData();
 				Map envelope = objectMapper.readValue(response, LinkedHashMap.class)
@@ -114,7 +116,11 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 						return
 					}
 					
-					Closure callback = callbacksMap.remove(replyAddress)
+					Closure callback = streamCallbacksMap.get(replyAddress)
+
+					if(callback == null) {
+						callback = callbacksMap.remove(replyAddress)
+					}       
 					
 					if(callback == null) {
 						log.warn("Callback not found for address ${replyAddress} - timed out")
@@ -132,23 +138,35 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 						return
 					}
 					
-					String status = body.status
-					if(status == null) status = "error_no_status"
+					Map responseObject = null
 					
-					String msg = body.message
-					if(!msg) msg = "(empty error message)"
 					
-					if(!status.equalsIgnoreCase('ok')) {
-						rm.exceptionType = status
-						rm.exceptionMessage = msg
-						callback(rm)
-						return
-					} 
+					//no wrapping code
+					if(body.get('_type') != null) {
+
+						responseObject = body
+						
+					} else {
 					
-					Map responseObject = body.response
+						String status = body.status
+						if(status == null) status = "error_no_status"
+						
+						String msg = body.message
+						if(!msg) msg = "(empty error message)"
+						
+						if(!status.equalsIgnoreCase('ok')) {
+							rm.exceptionType = status
+							rm.exceptionMessage = msg
+							callback(rm)
+							return
+						}
+						
+						responseObject = body.response
+					
+					}
 					
 					if(responseObject == null) {
-						rm.exceptionType = 'errir_no_.response'
+						rm.exceptionType = 'error_no_response'
 						rm.exceptionMessage = 'No response object'
 						callback(rm)
 						return
@@ -156,11 +174,16 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 					
 					try {
 						
+						
+						//remove stream name!
+						responseObject.remove('streamName')
+						
 						Object resObj = VitalServiceJSONMapper.fromJSON(responseObject)
 						
 						rm.response = resObj
 						
 					} catch(Exception e) {
+						log.error(e.localizedMessage, e)
 						rm.exceptionType = e.getClass().getCanonicalName()
 						rm.exceptionMessage = e.localizedMessage
 						callback(rm)
