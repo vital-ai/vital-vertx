@@ -129,7 +129,7 @@ class VitalJSEndpointsManager {
 							bean.vertx.eventBus().send(bean.authorizeAddress, [appID: bean.appID, sessionID: sessionID]) { Future<Message> authResponse ->
 								
 								if(!authResponse.succeeded()) {
-									log.error(authResponse.cause())
+									log.error(authResponse.cause().localizedMessage, authResponse.cause())
 									return
 								}
 								

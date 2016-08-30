@@ -6,7 +6,6 @@
 	<version>0.2.304</version>
 
   	<properties>
-		<vertx.version>3.2.1</vertx.version>
     	<vital.version>0.2.304</vital.version>
   	</properties>
 

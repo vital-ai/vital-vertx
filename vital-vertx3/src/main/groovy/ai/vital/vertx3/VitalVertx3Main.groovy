@@ -49,6 +49,7 @@ class VitalVertx3Main {
 			if(startError != null) {
 				System.err.println("ERROR when starting app ${app.name}: ${startError.getLocalizedMessage()}")
 				startError.printStackTrace()
+				System.exit(1)
 			} else {
 			
 				println "App started successfully: ${app.name}"
