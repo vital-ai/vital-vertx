@@ -33,6 +33,9 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	
 	Handler<Throwable> completeHandler	
 	
+	//returns reconnect count
+	Handler<Integer> connectionErrorHandler
+	
 	//this handler gets notified of reconnection event
 	Handler<Void> reconnectHandler
 	
@@ -54,15 +57,27 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	//append this to webservice object
 	String appSessionID
 	
+	int reconnectCount = 5
+	int reconnectIntervalMillis = 3000
+	
+	
+	private int attempt = 0
 	
 	private boolean closed = false
 	
 	private URL url
 	
 	/**
+	 * 
+	 * @param vertx - will *not* be closed when closeWebsocket is called or connect / reconnect exceptions occur
+	 * @param app
 	 * @param addressPrefix 'vitalservice.' or 'endpoint.'
+	 * @param endpointURL
+	 * @param reconnectCount
+	 * @param reconnectIntervalMillis
+	 * 
 	 */
-	VitalServiceAsyncWebsocketClient(Vertx vertx, VitalApp app, String addressPrefix, String endpointURL) {
+	VitalServiceAsyncWebsocketClient(Vertx vertx, VitalApp app, String addressPrefix, String endpointURL, int reconnectCount, int reconnectIntervalMillis) {
 		super(vertx)
 		if(app == null) throw new NullPointerException("Null app")
 		String appID = app.appID?.toString()
@@ -70,9 +85,16 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 		this.address = addressPrefix + appID
 		this.vertx = vertx
 		this.endpointURL = endpointURL
-		
+		if(reconnectCount < 0 ) throw new Exception("reconnectCount must be >= 0")
+		if(reconnectIntervalMillis < 1) throw new Exception("reconnectIntervalMillis must be > 0")
+		this.reconnectCount = reconnectCount
+		this.reconnectIntervalMillis = reconnectIntervalMillis
 		objectMapper = new ObjectMapper()
 		
+	}
+	
+	VitalServiceAsyncWebsocketClient(Vertx vertx, VitalApp app, String addressPrefix, String endpointURL) {
+		this(vertx, app, addressPrefix, endpointURL, 5, 3000)
 	}
 	
 	protected void sendPing() {
@@ -98,6 +120,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 		
 		httpClient.websocket(port, url.getHost(), url.getPath(), {WebSocket ws ->
 			
+			attempt = 0
 			webSocket = ws
 			
 			periodicID = vertx.setPeriodic(pingInterval) { Long periodicID ->
@@ -249,16 +272,20 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 			
 		}, {Throwable t ->
 		
+			if(periodicID != null) {
+				vertx.cancelTimer(periodicID)
+				periodicID = null
+			}
 		
 			if(completeHandler != null) {
 				
 				log.error("Error when opening a websocket connection: ${t.localizedMessage}", t)
+				closeWebsocket()
 				completeHandler.handle(t)
+				completeHandler = null
 				
 			} else {
 			
-				log.error("Error when reopening a websocket connection: ${t.localizedMessage}, retrying in 3 seconds", t)
-				
 				//just close the websocket connection
 				if(this.webSocket != null) {
 					try {
@@ -270,8 +297,19 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 					
 				}
 				
+				if(attempt >= reconnectCount) {
+					log.error("Error when reopening a websocket connection: ${t.localizedMessage}, attempt ${attempt} of ${reconnectCount}, notifying error handler", t)
+					closed = true
+					closeWebsocket()
+					connectionErrorHandler.handle(attempt)
+					return
+				}
+
+				attempt++
+				log.error("Error when reopening a websocket connection: ${t.localizedMessage}, attempt ${attempt} of ${reconnectCount} retrying in ${reconnectIntervalMillis} milliseconds", t)
+				
 				//just keep retrying after
-				vertx.setTimer(3000L) { Long timerID ->
+				vertx.setTimer(reconnectIntervalMillis) { Long timerID ->
 					
 					openWebSocket()
 					
@@ -283,9 +321,17 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 		
 	}
 	
-	public void	connect(Handler<Throwable> completeHandler) {
+	/**
+	 * Connects to an endpoint. 
+	 * Complete handler gets notified of success (null throwable), error otherwise
+	 * The connection error handler is triggered when N reconnect attempts have failed
+	 */
+	public void	connect(Handler<Throwable> completeHandler, Handler<Void> connectionErrorHandler) {
 		
+		if(completeHandler == null) throw new NullPointerException("complete handler must not be null")
+		if(connectionErrorHandler == null) throw new NullPointerException("connectionErrorHandler must not be null")
 		this.completeHandler = completeHandler
+		this.connectionErrorHandler = connectionErrorHandler
 		
 		url = new URL(endpointURL)
 		
@@ -343,14 +389,14 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 			this.httpClient = null
 		}
 		
-		if(vertx != null) {
-			try {
-				vertx.close()
-			} catch(Exception e) {
-				log.error("Error when closing vertx: ${e.localizedMessage}", e)
-			}
-			this.vertx = null
-		}
+//		if(vertx != null) {
+//			try {
+//				vertx.close()
+//			} catch(Exception e) {
+//				log.error("Error when closing vertx: ${e.localizedMessage}", e)
+//			}
+//			this.vertx = null
+//		}
 		
 		status = VitalStatus.withOKMessage("async websocket client closed")
 		
