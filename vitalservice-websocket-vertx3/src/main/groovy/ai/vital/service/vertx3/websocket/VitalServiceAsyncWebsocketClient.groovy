@@ -33,11 +33,15 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	
 	Handler<Throwable> completeHandler	
 	
+	//this handler gets notified of reconnection event
+	Handler<Void> reconnectHandler
+	
 	HttpClient httpClient
 	
 	WebSocket webSocket
 	
 	Map<String, Closure> callbacksMap = [:]
+	Map<String, Long> callbacks2Timers = [:]
 	
 	Map<String, Closure> streamCallbacksMap = [:]
 	
@@ -49,6 +53,11 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	
 	//append this to webservice object
 	String appSessionID
+	
+	
+	private boolean closed = false
+	
+	private URL url
 	
 	/**
 	 * @param addressPrefix 'vitalservice.' or 'endpoint.'
@@ -67,15 +76,19 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	}
 	
 	protected void sendPing() {
-		webSocket.writeFinalTextFrame(JsonOutput.toJson([type: 'ping']))
-		log.debug("Ping sent")
+		if(webSocket != null) {
+			webSocket.writeFinalTextFrame(JsonOutput.toJson([type: 'ping']))
+			log.debug("Ping sent")
+		}
 	}
 	
-	public void	connect(Handler<Throwable> completeHandler) {
+	
+	private openWebSocket() {
 		
-		this.completeHandler = completeHandler
-		
-		URL url = new URL(endpointURL)
+		if(periodicID != null) {
+			vertx.cancelTimer(periodicID)
+			periodicID = null
+		}
 		
 		int port = url.getPort()
 		
@@ -83,15 +96,9 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 			port = url.getDefaultPort()
 		}
 		
-		Map opts = [ ssl: url.getProtocol().equalsIgnoreCase('https') ]
-		
-		httpClient = vertx.createHttpClient(opts)
-
 		httpClient.websocket(port, url.getHost(), url.getPath(), {WebSocket ws ->
 			
 			webSocket = ws
-			
-			sendPing()
 			
 			periodicID = vertx.setPeriodic(pingInterval) { Long periodicID ->
 				this.periodicID = periodicID
@@ -120,12 +127,17 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 
 					if(callback == null) {
 						callback = callbacksMap.remove(replyAddress)
-					}       
+						Long timerID = callbacks2Timers.remove(replyAddress)
+						if(timerID != null) {
+							vertx.cancelTimer(timerID)
+						}
+					}
+					
 					
 					if(callback == null) {
 						log.warn("Callback not found for address ${replyAddress} - timed out")
 						return
-					} 
+					}
 					
 					Map body = envelope.body
 					
@@ -199,27 +211,99 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 				}
 				
 //				println frame.isText()
-//				
+//
 //				log.info("Frame received: ${frame} ${textHandlerID}")
 				
 				
 			}
 			
+			/*
+			webSocket.closeHandler {
+				log.info("WebSocket close handler")
+				
+				if(closed) {
+					log.info("client already closed")
+//				} else {
+//					log.warn("re-opening websocket")
+//					openWebSocket()
+				}
+				
+			}
+			*/
+			
+			webSocket.exceptionHandler { Throwable t ->
+				log.error("WEBSOCKET EXCEPTION", t)
+			}
+			
 			log.info("WebSocket connection to ${endpointURL} ready")
 			
-			completeHandler.handle(null)
+			if(completeHandler != null) {
+				completeHandler.handle(null)
+				//handler notified only once
+				completeHandler = null
+			}
+			
+			if(reconnectHandler != null) {
+				reconnectHandler.handle()
+			}
 			
 		}, {Throwable t ->
 		
-			log.error("Error when opening a websocket connection: ${t.localizedMessage}", t)
 		
-			completeHandler.handle(t)
+			if(completeHandler != null) {
+				
+				log.error("Error when opening a websocket connection: ${t.localizedMessage}", t)
+				completeHandler.handle(t)
+				
+			} else {
+			
+				log.error("Error when reopening a websocket connection: ${t.localizedMessage}, retrying in 3 seconds", t)
+				
+				//just close the websocket connection
+				if(this.webSocket != null) {
+					try {
+						this.webSocket.close()
+					} catch(Exception e) {
+					}
+					
+					this.webSocket = null
+					
+				}
+				
+				//just keep retrying after
+				vertx.setTimer(3000L) { Long timerID ->
+					
+					openWebSocket()
+					
+				}
+			
+			}
 			
 		})
 		
 	}
 	
+	public void	connect(Handler<Throwable> completeHandler) {
+		
+		this.completeHandler = completeHandler
+		
+		url = new URL(endpointURL)
+		
+		Map opts = [ ssl: url.getProtocol().equalsIgnoreCase('https') ]
+		
+		httpClient = vertx.createHttpClient(opts)
+
+		openWebSocket()
+		
+	}
+	
 	public VitalStatus closeWebsocket()  {
+		
+		if( this.closed ) {
+			return VitalStatus.withOKMessage("Client already closed");
+		}
+		
+		this.closed = true
 		
 		if(periodicID != null) {
 			vertx.cancelTimer(periodicID)
@@ -282,6 +366,12 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 			closure(rm)
 			return
 		}
+		
+		if(this.webSocket == null) {
+			ResponseMessage res = new ResponseMessage("error_websocket_failed", "Websocket connection unavailable, retry")
+			closure(res)
+			return
+		}
 	
 		if(method == 'close') {
 			
@@ -328,6 +418,17 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 //			Buffer buffer = Buffer.buffer(bytes.length)
 //			((io.vertx.core.buffer.Buffer)buffer.getDelegate()).appendBytes(bytes)
 		this.webSocket.writeFinalTextFrame(JsonOutput.toJson(envelope))
+		
+		long _timerID = vertx.setTimer(30000) { Long timerID ->
+			
+			callbacks2Timers.remove(replyAddress)
+			
+			if( callbacksMap.remove(replyAddress) != null ) {
+				ResponseMessage res = new ResponseMessage('error_request_timeout', "Request timed out (30000ms)")
+				closure(res)
+			}
+			
+		}
 	
 	}
 
