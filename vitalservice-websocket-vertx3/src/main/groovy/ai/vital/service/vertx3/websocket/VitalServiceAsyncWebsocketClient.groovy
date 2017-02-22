@@ -229,7 +229,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 						
 				} else {
 				
-					log.warn("Unknown msg type: ${mtype}")
+					log.warn("Unknown msg type: ${mtype}, ${envelope}")
 				
 				}
 				
@@ -240,19 +240,17 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 				
 			}
 			
-			/*
 			webSocket.closeHandler {
-				log.info("WebSocket close handler")
+				log.info("WebSocket close handler called")
 				
 				if(closed) {
-					log.info("client already closed")
-//				} else {
-//					log.warn("re-opening websocket")
-//					openWebSocket()
+					log.info("client already closed - that's ok")
+				} else {
+					log.error("websocket closed, re-opening")
+					openWebSocket()
 				}
 				
 			}
-			*/
 			
 			webSocket.exceptionHandler { Throwable t ->
 				log.error("WEBSOCKET EXCEPTION", t)
