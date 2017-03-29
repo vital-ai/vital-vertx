@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry
 
+import org.apache.commons.collections.map.LRUMap;
 import org.githubusercontent.defuse.passwordhash.PasswordHash;
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -132,7 +133,12 @@ class VitalAuthManager extends GroovyVerticle {
 		protected int maxSessionsPerUser = 1 
 				
 		protected Boolean persistentSessions = null
+
 		
+		protected Map<String, CachedLogin> cachedLogins = null
+		
+		protected Integer cachedLoginsTTL = null
+				
 		//only for 
 		protected Boolean mockedLogin = null
 		
@@ -461,11 +467,36 @@ class VitalAuthManager extends GroovyVerticle {
 					
 					bean.logins = new HashMap<>();
 					
+					
 				} else {
 					
 					if(!sessionsSegment) throw new RuntimeException("App: ${appID} no sessionsSegment param, required when persistent sessions = true")
 					
 					bean.sessionsSegment = VitalSegment.withId(sessionsSegment)
+					
+					Number cachedLoginsLRUSize = appCfg.get('cachedLoginsLRUSize')
+					if(cachedLoginsLRUSize == null) {
+						cachedLoginsLRUSize = 1000
+						log.warn("No cachedLoginsLRUSize, using default: ${cachedLoginsLRUSize}")
+					} else {
+						log.info("cachedLoginsLRUSize: ${cachedLoginsLRUSize}")
+					}
+					
+					if(cachedLoginsLRUSize.intValue() > 0) {
+						bean.cachedLogins = Collections.synchronizedMap( new LRUMap(cachedLoginsLRUSize.intValue()))
+					} else {
+						log.warn("Logins cache disabled")
+					}
+					
+					
+					Number cachedLoginsTTL = appCfg.get('cachedLoginsTTL')
+					if(cachedLoginsTTL == null) {
+						cachedLoginsTTL = 60000
+						log.warn("No cachedLoginsTTL, using default value ${cachedLoginsTTL} [ms]")
+					} else {
+						log.info("cachedLoginsTTL: ${cachedLoginsTTL} [ms]")
+					}
+					bean.cachedLoginsTTL = cachedLoginsTTL.intValue()
 					
 				}
 				
@@ -749,7 +780,11 @@ class VitalAuthManager extends GroovyVerticle {
 								message.reply([status: error_vital_service, message: 'VitalService error: ' + saveSessionReply.exceptionType + ' - ' + saveSessionReply.exceptionMessage])
 								return
 							}
-								
+							
+							if(bean.cachedLogins != null) {
+								bean.cachedLogins.put(session.sessionID.toString(), new CachedLogin(timestamp: System.currentTimeMillis(), login: login))
+							}	
+							
 							message.reply([status: 'ok', message: 'logged in', sessionID: session.sessionID.toString(), object: VitalServiceJSONMapper.toJSON(login)])
 								
 						}
@@ -931,6 +966,10 @@ class VitalAuthManager extends GroovyVerticle {
 		
 		if(bean.persistentSessions) {
 			
+			if(bean.cachedLogins != null) {
+				bean.cachedLogins.remove(sessionID)
+			}
+			
 			int uscore = sessionID.indexOf('_')
 			
 			if(uscore <= 0) {
@@ -1077,6 +1116,30 @@ class VitalAuthManager extends GroovyVerticle {
 			return
 		}
 		
+		
+		if( bean.cachedLogins != null ) {
+			
+			CachedLogin cl = bean.cachedLogins.get(sessionID)
+			
+			if(cl != null) {
+				if(System.currentTimeMillis() - cl.timestamp >= bean.cachedLoginsTTL.longValue() ) {
+					log.info("Cached login entry expired: {}", sessionID)
+					bean.cachedLogins.remove(sessionID)
+					cl = null
+				}
+			}
+			
+			if(cl != null) {
+				
+				log.info("Cached login found replying immediately: {}", sessionID)
+				message.reply([status: 'ok', sessionID: sessionID, object: VitalServiceJSONMapper.toJSON(cl.login)])
+				return
+				
+			}
+			
+			
+		}
+		
 		String type = sessionID.substring(0, uscore)
 		
 		message.body().put('type', type)
@@ -1182,6 +1245,7 @@ class VitalAuthManager extends GroovyVerticle {
 		GraphObject object = null//VitalSigns.get().getFromCache(userURI)
 			
 		if(object == null) {
+			
 			def onUserObjectClosure = { ResponseMessage getObjectMsg ->
 				
 //			bean._getRemoteObject(userURI) { ResponseMessage getObjectMsg ->
@@ -1218,6 +1282,10 @@ class VitalAuthManager extends GroovyVerticle {
 				
 //				VitalSigns.get().addToCache(object)
 				
+				if(bean.cachedLogins != null) {
+					bean.cachedLogins.put(sessionID, new CachedLogin(timestamp: System.currentTimeMillis(), login: object))
+				}
+				
 				message.reply([status: 'ok', sessionID: sessionID, object: VitalServiceJSONMapper.toJSON(object)])
 				
 			}
@@ -1245,9 +1313,13 @@ class VitalAuthManager extends GroovyVerticle {
 			}
 			
 			return
+			
+		} else {
+		
+			message.reply([status: 'ok', sessionID: sessionID, object: VitalServiceJSONMapper.toJSON(object)])
+			
 		}
 		
-		message.reply([status: 'ok', sessionID: sessionID, object: VitalServiceJSONMapper.toJSON(object)])
 		
   }
 

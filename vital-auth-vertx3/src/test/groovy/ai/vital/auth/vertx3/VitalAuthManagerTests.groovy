@@ -106,6 +106,8 @@ class VitalAuthManagerTests extends AbstractVitalServiceVertxTest {
 					maxSessionsPerUser: 3,
 					expirationProlongMargin: 10000,
 					session_timeout: 1800000,
+					cachedLoginsLRUSize: 10,
+					cachedLoginsTTL: 1000,
 					filter: [
 						[ type: 'allow', method: 'ping' ],
 						[ type: 'allow', method: 'callFunction', function: 'vitalauth\\..*' ],
@@ -608,6 +610,8 @@ class VitalAuthManagerTests extends AbstractVitalServiceVertxTest {
 		service.save(session)
 		
 		body = null
+		
+		Thread.sleep(1000)
 		
 		ltp.delayed {
 			
