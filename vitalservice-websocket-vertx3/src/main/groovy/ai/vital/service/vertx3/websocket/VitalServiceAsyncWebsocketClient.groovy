@@ -67,6 +67,8 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	
 	private URL url
 	
+	Long reopeningTimer = null 
+	
 	/**
 	 * 
 	 * @param vertx - will *not* be closed when closeWebsocket is called or connect / reconnect exceptions occur
@@ -120,6 +122,7 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 		
 		httpClient.websocket(port, url.getHost(), url.getPath(), {WebSocket ws ->
 			
+			reopeningTimer = null
 			attempt = 0
 			webSocket = ws
 			
@@ -246,8 +249,12 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 				if(closed) {
 					log.info("client already closed - that's ok")
 				} else {
-					log.error("websocket closed, re-opening")
-					openWebSocket()
+					if(reopeningTimer != null) {
+						log.error("websocket closed, but already a re-open timer set")
+					} else {
+						log.error("websocket closed, re-opening")
+						openWebSocket()
+					}
 				}
 				
 			}
@@ -269,7 +276,9 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 			}
 			
 		}, {Throwable t ->
-		
+
+			log.error("Error when (re-)opening a websocket connection: ${t.localizedMessage}", t)
+				
 			if(periodicID != null) {
 				vertx.cancelTimer(periodicID)
 				periodicID = null
@@ -277,7 +286,6 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 		
 			if(completeHandler != null) {
 				
-				log.error("Error when opening a websocket connection: ${t.localizedMessage}", t)
 				closeWebsocket()
 				completeHandler.handle(t)
 				completeHandler = null
@@ -307,9 +315,9 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 				log.error("Error when reopening a websocket connection: ${t.localizedMessage}, attempt ${attempt} of ${reconnectCount} retrying in ${reconnectIntervalMillis} milliseconds", t)
 				
 				//just keep retrying after
-				vertx.setTimer(reconnectIntervalMillis) { Long timerID ->
-					
+				reopeningTimer = vertx.setTimer(reconnectIntervalMillis) { Long timerID ->
 					openWebSocket()
+					reopeningTimer = null
 					
 				}
 			
