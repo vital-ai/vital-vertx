@@ -2,10 +2,12 @@ package ai.vital.auth.queries
 
 
 import ai.vital.domain.CredentialsLogin;
-import ai.vital.domain.CredentialsLogin_PropertiesHelper;
+import ai.vital.domain.CredentialsLogin_PropertiesHelper
+import ai.vital.domain.Edge_hasLoginAuth;
 import ai.vital.domain.UserSession;
 import ai.vital.domain.UserSession_PropertiesHelper;
 import ai.vital.query.querybuilder.VitalBuilder;
+import ai.vital.vitalservice.query.VitalGraphQuery
 import ai.vital.vitalservice.query.VitalSelectQuery
 import ai.vital.vitalservice.query.VitalSortProperty;
 import ai.vital.vitalsigns.model.VitalSegment
@@ -44,6 +46,52 @@ class Queries {
 				
 		return query
 		
+	}
+	
+	static VitalGraphQuery graphTypedLoginWithAuthQuery(Class clz, VitalSegment segment, String username) {
+		
+		
+		VitalGraphQuery query = builder.query {
+			
+			GRAPH {
+				
+				value offset: 0
+				
+				value limit: 10
+				
+				value segments: [segment]
+				
+				value inlineObjects: true
+
+				ARC {
+
+					AND {
+						
+						node_constraint { clz }
+						
+						node_constraint { ((CredentialsLogin_PropertiesHelper)CredentialsLogin.props()).username.equalTo(username) }
+					
+					}
+					
+					ARC {
+						
+						value optional: true
+						
+						edge_constraint { Edge_hasLoginAuth.class }
+						
+						
+					}
+		
+										
+				}
+										
+			
+			}
+			
+		}.toQuery()
+				
+		return query
+						
 	}
 
 	static VitalSelectQuery selectTypedLogins(Class, clz, VitalSegment segment, Integer offset, Integer limit) {

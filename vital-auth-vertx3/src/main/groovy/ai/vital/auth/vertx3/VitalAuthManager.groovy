@@ -21,7 +21,9 @@ import ai.vital.auth.queries.Queries;
 import ai.vital.auth.vertx3.AppFilter.Auth
 import ai.vital.auth.vertx3.AppFilter.Rule
 import ai.vital.domain.CredentialsLogin;
-import ai.vital.domain.Login;
+import ai.vital.domain.Edge_hasLoginAuth
+import ai.vital.domain.Login
+import ai.vital.domain.LoginAuth;
 import ai.vital.domain.AdminLogin
 import ai.vital.domain.UserSession
 import ai.vital.service.vertx3.VitalServiceVertx3;
@@ -31,11 +33,14 @@ import ai.vital.service.vertx3.handler.AbstractVitalServiceHandler;
 import ai.vital.vitalservice.VitalService
 import ai.vital.vitalservice.VitalStatus;
 import ai.vital.vitalservice.json.VitalServiceJSONMapper;
-import ai.vital.vitalservice.query.ResultList;
+import ai.vital.vitalservice.query.ResultList
+import ai.vital.vitalservice.query.VitalGraphQuery;
 import ai.vital.vitalservice.query.VitalSelectQuery
 import ai.vital.vitalsigns.VitalSigns;
 import ai.vital.vitalsigns.meta.GraphContext;
+import ai.vital.vitalsigns.model.GraphMatch
 import ai.vital.vitalsigns.model.GraphObject
+import ai.vital.vitalsigns.model.VITAL_Container
 import ai.vital.vitalsigns.model.VitalApp;
 import ai.vital.vitalsigns.model.VitalSegment
 import ai.vital.vitalsigns.model.property.URIProperty;
@@ -74,6 +79,10 @@ class VitalAuthManager extends GroovyVerticle {
 	 
 	public final static String error_invalid_username = 'error_invalid_username'
 	 
+	public final static String error_missing_auth = 'error_missing_auth'
+	
+	public final static String error_too_many_auths = 'error_too_many_g_auths'
+	
 	public final static String error_email_unverified = 'error_email_unverified'
 	 
 	public final static String error_login_inactive = 'error_login_inactive'
@@ -99,14 +108,28 @@ class VitalAuthManager extends GroovyVerticle {
 	
 	static Login guestLogin = new Login()
 	
+	static Edge_hasLoginAuth guestLoginEdge = new Edge_hasLoginAuth()
+	
+	static LoginAuth guestLoginAuth = new LoginAuth()
+	
 	static {
 		guestLogin.URI = "urn:guestLogin"
 		guestLogin.active = true
 		guestLogin.emailVerified = true
 		guestLogin.locked = false
 		guestLogin.name = "Guest Login"
-		guestLogin.password = PasswordHash.createHash("guest")
 		guestLogin.username = "guest"
+		
+		
+		guestLoginAuth.URI = 'urn:guestLoginAuth'
+		guestLoginAuth.name = guestLogin.name
+		guestLoginAuth.username = guestLogin.username
+		guestLoginAuth.password = PasswordHash.createHash("guest")
+		
+		guestLoginEdge.URI = 'urn:guestLoginEdge' 
+		guestLoginEdge.addSource(guestLogin).addDestination(guestLoginAuth)
+		
+		
 	}
 	
 	
@@ -192,6 +215,12 @@ class VitalAuthManager extends GroovyVerticle {
 		
 			vitalService.query(selectQuery, closure)
 				
+		}
+		
+		protected void _executeGraphQuery(VitalGraphQuery graphQuery, Closure closure) {
+			
+			vitalService.query(graphQuery, closure)
+			
 		}
 		
 		protected void _generateURI(Class<? extends GraphObject> clazz, Closure closure) {
@@ -701,7 +730,7 @@ class VitalAuthManager extends GroovyVerticle {
 		
 		final long _timeoutValue = bean.sessionTimeout
 
-		def onUserSelectQueryResponse = { ResponseMessage selectQueryReply ->
+		def onUserGraphQueryResponse = { ResponseMessage selectQueryReply ->
 		
 			if( selectQueryReply.exceptionMessage ) {
 				message.reply([status: error_vital_service, message: 'VitalService error: ' + selectQueryReply.exceptionType + ' - ' + selectQueryReply.exceptionMessage])
@@ -714,15 +743,34 @@ class VitalAuthManager extends GroovyVerticle {
 				message.reply([status: error_vital_service, message: 'VitalService error: ' + rs.status.toString()])
 				return
 			}
+		
+			//unpack results if necessary
+			rs = unpackGraphMatchConditionally(rs)
+
+			VITAL_Container container = rs.toContainer()
+						
+			List<CredentialsLogin> logins = container.iterator(CredentialsLogin.class).toList()
 			
-			if( rs.results.size() < 1 ) {
+			if( logins.size() < 1 ) {
 				message.reply([status: error_invalid_username, message: 'User not found: ' + username])
 				return
 			}
 			
-			CredentialsLogin login = rs.results[0].graphObject
+			CredentialsLogin login = logins.get(0)
 			
-			String savedHashedPasswd = login.password
+			List<LoginAuth> auths = login.getLoginAuths(GraphContext.Container, container).toList()
+			if(auths.size() == 0) {
+				message.reply([status: error_missing_auth, message: 'Auth not found for user: ' + username])
+				return
+			}
+			if(auths.size() > 1) {
+				message.reply([status: error_too_many_auths, message: 'More than 1 auth found for user: ' + username + ' [' + auths.size()+ ']'])
+				return
+			}
+			
+			LoginAuth loginAuth = auths.get(0)
+			
+			String savedHashedPasswd = loginAuth.password
 			
 			try {
 				if( ! PasswordHash.validatePassword(password, savedHashedPasswd) ) {
@@ -912,13 +960,13 @@ class VitalAuthManager extends GroovyVerticle {
 			//prepare fake response message
 			ResponseMessage rm = new ResponseMessage()
 			rm.setResponse(rl)
-			onUserSelectQueryResponse(rm)
+			onUserGraphQueryResponse(rm)
 			
 		} else {
 		
-			VitalSelectQuery selectQuery = Queries.selectTypedLoginQuery(cls, loginsSegment, username)
+			VitalGraphQuery graphQuery = Queries.graphTypedLoginWithAuthQuery(cls, loginsSegment, username)
 		
-			bean._executeSelectQuery(selectQuery, onUserSelectQueryResponse)
+			bean._executeGraphQuery(graphQuery, onUserGraphQueryResponse)
 			
 		}
 		
@@ -1323,4 +1371,42 @@ class VitalAuthManager extends GroovyVerticle {
 		
   }
 
+	public static ResultList unpackGraphMatchConditionally(ResultList rl) {
+		
+		ResultList r = new ResultList();
+		
+		Set<String> added = new HashSet<String>();
+		
+		for(GraphObject g : rl) {
+					
+			if(g instanceof GraphMatch) {
+				
+				GraphMatch gm = g
+				
+				for( String bn : rl.getBindingNames() ) {
+						
+					URIProperty val = gm.getProperty(bn)
+								
+					if(val == null) continue
+						
+					GraphObject x = gm.getProperty(val.get())
+					
+					if(x != null && added.add(x.URI)) {
+						
+						r.addResult(x)
+						
+					}
+
+				}
+					
+			} else {
+				r.addResult(g)
+//				throw new RuntimeException("Expected graph match objects only");
+			}
+					
+		}
+			
+		return r;
+	}
+	
 }

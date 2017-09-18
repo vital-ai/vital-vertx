@@ -7,7 +7,9 @@ import ai.vital.auth.handlers.VitalAuthoriseHandler;
 import ai.vital.auth.vertx3.VitalAuthManager
 import ai.vital.auth.vertx3.VitalJSEndpointsManager;
 import ai.vital.domain.CredentialsLogin
+import ai.vital.domain.Edge_hasLoginAuth;
 import ai.vital.domain.Login
+import ai.vital.domain.LoginAuth;
 import ai.vital.domain.UserSession
 import ai.vital.domain.UserSession_PropertiesHelper
 import ai.vital.lucene.disk.service.config.VitalServiceLuceneDiskConfig
@@ -82,12 +84,18 @@ class VitalAuthManagerTests extends AbstractVitalServiceVertxTest {
 		
 		login = new Login().generateURI(app)
 		login.username = "test"
-		login.password = PasswordHash.createHash("pass")
 		login.active = true
 		login.emailVerified = true
 		
+		LoginAuth auth = new LoginAuth().generateURI(app)
+		auth.username = login.username
+		auth.password = PasswordHash.createHash("pass")
+		auth.name = login.name
 		
-		service.save(loginsSegment, login, true)
+		Edge_hasLoginAuth authEdge = new Edge_hasLoginAuth().generateURI(app)
+		authEdge.addSource(login).addDestination(auth)
+		
+		service.save(loginsSegment, [login, auth, authEdge], true)
 		
 		
 		super.setUp();
