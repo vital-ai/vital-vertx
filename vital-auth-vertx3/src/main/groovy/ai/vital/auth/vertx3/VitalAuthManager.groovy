@@ -20,6 +20,7 @@ import ai.vital.auth.handlers.VitalLogoutHandler;
 import ai.vital.auth.queries.Queries;
 import ai.vital.auth.vertx3.AppFilter.Auth
 import ai.vital.auth.vertx3.AppFilter.Rule
+import ai.vital.domain.Account
 import ai.vital.domain.CredentialsLogin;
 import ai.vital.domain.Edge_hasLoginAuth
 import ai.vital.domain.Login
@@ -654,6 +655,8 @@ class VitalAuthManager extends GroovyVerticle {
 		
 		String appID = body.get('appID')
 		
+		String accountID = body.get('accountID')
+		
 		if(!type) {
 			message.reply([status: error_no_type, message: 'No type parameter'])
 			return
@@ -752,7 +755,7 @@ class VitalAuthManager extends GroovyVerticle {
 			List<CredentialsLogin> logins = container.iterator(CredentialsLogin.class).toList()
 			
 			if( logins.size() < 1 ) {
-				message.reply([status: error_invalid_username, message: 'User not found: ' + username])
+				message.reply([status: error_invalid_username, message: 'User not found: ' + username + (accountID ? (' accountID: ' + accountID) : '')])
 				return
 			}
 			
@@ -760,11 +763,11 @@ class VitalAuthManager extends GroovyVerticle {
 			
 			List<LoginAuth> auths = login.getLoginAuths(GraphContext.Container, container).toList()
 			if(auths.size() == 0) {
-				message.reply([status: error_missing_auth, message: 'Auth not found for user: ' + username])
+				message.reply([status: error_missing_auth, message: 'Auth not found for user: ' + username + (accountID ? (' accountID: ' + accountID) : '')])
 				return
 			}
 			if(auths.size() > 1) {
-				message.reply([status: error_too_many_auths, message: 'More than 1 auth found for user: ' + username + ' [' + auths.size()+ ']'])
+				message.reply([status: error_too_many_auths, message: 'More than 1 auth found for user: ' + username + (accountID ? (' accountID: ' + accountID) : '') + ' [' + auths.size()+ ']'])
 				return
 			}
 			
@@ -787,7 +790,7 @@ class VitalAuthManager extends GroovyVerticle {
 			if(login instanceof Login) {
 				Login l = login
 				if( l.emailVerified == null || l.emailVerified.booleanValue() == false ) {
-					message.reply([status: error_email_unverified, message: (String) "The email ${username} is not verified, cannot log in"])
+					message.reply([status: error_email_unverified, message: (String) "The email ${username} ${accountID ? (' accountID: ' + accountID) : ''} is not verified, cannot log in"])
 					return
 				}
 				if( l.active != null && l.active.booleanValue() == false ) {
@@ -964,9 +967,46 @@ class VitalAuthManager extends GroovyVerticle {
 			
 		} else {
 		
-			VitalGraphQuery graphQuery = Queries.graphTypedLoginWithAuthQuery(cls, loginsSegment, username)
+			if(accountID) {
+				
+				//look up account by ID
+				bean._executeSelectQuery( Queries.selectAccountByID(loginsSegment, accountID)) { ResponseMessage selectQueryReply ->
+					
+					if( selectQueryReply.exceptionMessage ) {
+						message.reply([status: error_vital_service, message: 'VitalService error: ' + selectQueryReply.exceptionType + ' - ' + selectQueryReply.exceptionMessage])
+						return
+					}
+							
+					ResultList rs = selectQueryReply.response
+							
+					if (rs.status.status != VitalStatus.Status.ok) {
+						message.reply([status: error_vital_service, message: 'VitalService error: ' + rs.status.toString()])
+						return
+					}
+					
+					
+					Account account = rs.first()
 		
-			bean._executeGraphQuery(graphQuery, onUserGraphQueryResponse)
+					if(account == null) {
+						message.reply([status: 'error_account_not_found', message: 'Account with ID '+ accountID + ' not found'])
+						return
+					}				
+
+					String targetUsername = username + '|' + account.accountLoginSuffix
+				
+					VitalGraphQuery graphQuery = Queries.graphTypedLoginWithAuthQuery(cls, loginsSegment, targetUsername)
+					bean._executeGraphQuery(graphQuery, onUserGraphQueryResponse)
+					
+				}
+				
+			} else {
+			
+				VitalGraphQuery graphQuery = Queries.graphTypedLoginWithAuthQuery(cls, loginsSegment, username)
+						
+				bean._executeGraphQuery(graphQuery, onUserGraphQueryResponse)
+				
+			}
+		
 			
 		}
 		

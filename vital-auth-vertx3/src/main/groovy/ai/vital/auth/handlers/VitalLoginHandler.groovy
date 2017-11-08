@@ -45,9 +45,12 @@ class VitalLoginHandler extends VertxAwareAsyncCallFunctionHandler {
 			
 			if(app == null) { throw new RuntimeException("App must not be null") }
 			
+			//accountID is optional
+			String accountID = params.get('accountID')
+			
 			String appID = app.appID.toString()
 			
-			vertx.eventBus().send(loginAddress, [appID: appID, type: type, username: username, password: password]) { Future<Message> response ->
+			vertx.eventBus().send(loginAddress, [appID: appID, type: type, username: username, accountID: accountID, password: password]) { Future<Message> response ->
 				
 				ResultList rl = new ResultList()
 				

@@ -1,6 +1,8 @@
 package ai.vital.auth.queries
 
 
+import ai.vital.domain.Account;
+import ai.vital.domain.Account_PropertiesHelper;
 import ai.vital.domain.CredentialsLogin;
 import ai.vital.domain.CredentialsLogin_PropertiesHelper
 import ai.vital.domain.Edge_hasLoginAuth;
@@ -44,6 +46,26 @@ class Queries {
 			
 		}.toQuery()
 				
+		return query
+		
+	}
+	
+	static VitalSelectQuery selectAccountByID(VitalSegment segment, String accountID) {
+		
+		VitalSelectQuery query = builder.query {
+			
+			SELECT {
+				
+				value offset: 0
+				value limit: 10
+				value segments: [segment]
+				
+				node_constraint { ((Account_PropertiesHelper)Account.props()).accountID.equalTo(accountID) }
+				
+			}
+			
+		}.toQuery()
+		
 		return query
 		
 	}

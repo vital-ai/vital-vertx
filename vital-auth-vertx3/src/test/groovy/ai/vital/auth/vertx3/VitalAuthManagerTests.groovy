@@ -6,8 +6,10 @@ import org.githubusercontent.defuse.passwordhash.PasswordHash;
 import ai.vital.auth.handlers.VitalAuthoriseHandler;
 import ai.vital.auth.vertx3.VitalAuthManager
 import ai.vital.auth.vertx3.VitalJSEndpointsManager;
+import ai.vital.domain.Account
 import ai.vital.domain.CredentialsLogin
-import ai.vital.domain.Edge_hasLoginAuth;
+import ai.vital.domain.Edge_hasLoginAuth
+import ai.vital.domain.Edge_hasUserLogin;
 import ai.vital.domain.Login
 import ai.vital.domain.LoginAuth;
 import ai.vital.domain.UserSession
@@ -35,7 +37,11 @@ class VitalAuthManagerTests extends AbstractVitalServiceVertxTest {
 	
 	private File luceneRoot
 	
+	protected Account account
+	
 	protected Login login
+	
+	protected Login scopedLogin
 	
 	VitalApp app = VitalApp.withId("app")
 	
@@ -82,20 +88,47 @@ class VitalAuthManagerTests extends AbstractVitalServiceVertxTest {
 		//the service should be ready
 		service = VitalServiceFactory.openService(serviceKey, cfg, VitalServiceVertx3.SERVICE_NAME_PREFIX + app.appID.toString())
 		
+		account = new Account().generateURI(app)
+		int ls = account.URI.lastIndexOf('/')
+		account.name = "test account"
+		account.accountLoginSuffix = account.URI.substring(ls + 1)
+		account.accountID = 'test-account'
+		
+		
 		login = new Login().generateURI(app)
 		login.username = "test"
 		login.active = true
 		login.emailVerified = true
+		
+		Edge_hasUserLogin loginEdge = new Edge_hasUserLogin().addSource(account).addDestination(login).generateURI(app)
 		
 		LoginAuth auth = new LoginAuth().generateURI(app)
 		auth.username = login.username
 		auth.password = PasswordHash.createHash("pass")
 		auth.name = login.name
 		
-		Edge_hasLoginAuth authEdge = new Edge_hasLoginAuth().generateURI(app)
-		authEdge.addSource(login).addDestination(auth)
+		Edge_hasLoginAuth authEdge = new Edge_hasLoginAuth().addSource(login).addDestination(auth).generateURI(app)
 		
-		service.save(loginsSegment, [login, auth, authEdge], true)
+		
+		scopedLogin = new Login().generateURI(app)
+		scopedLogin.username = 'test2@example.org' + '|' + account.accountLoginSuffix
+		scopedLogin.emailAddress = 'test2@example.org'
+		scopedLogin.active = true
+		scopedLogin.emailVerified = true
+		
+		Edge_hasUserLogin scopedLoginEdge = new Edge_hasUserLogin().addSource(account).addDestination(scopedLogin).generateURI(app)
+		
+		
+		LoginAuth scopedAuth = new LoginAuth().generateURI(app)
+		scopedAuth.username = scopedLogin.username
+		scopedAuth.password = PasswordHash.createHash("pass")
+		scopedAuth.name = scopedLogin.name
+		
+		Edge_hasLoginAuth scopedAuthEdge = new Edge_hasLoginAuth().addSource(scopedLogin).addDestination(scopedAuth)generateURI(app)
+		
+		
+		
+		service.save(loginsSegment, [account, login, loginEdge, auth, authEdge, scopedLogin, scopedLoginEdge, scopedAuth, scopedAuthEdge], true)
 		
 		
 		super.setUp();
@@ -326,9 +359,48 @@ class VitalAuthManagerTests extends AbstractVitalServiceVertxTest {
 		
 		assertEquals(VitalAuthManager.error_denied, body.status)
 	
-		endpointAccessPing();
+		doTestAccountIDLogin()
 			
 			
+	}
+	
+	private doTestAccountIDLogin() {
+		
+		println "TEST ACCOUNT ID LOGIN"
+		
+		Map body = null
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus().send(VitalAuthManager.address_login, [appID: app.appID.toString(), type: Login.class.simpleName, username: scopedLogin.emailAddress.toString(), password: 'pass', accountID: account.accountID.toString()]) { Future<Message> response ->
+
+				if(response.succeeded()) {
+					body = response.result().body()
+				} else {
+					System.err.println( response.cause() )
+				}
+				
+				ltp.resume()
+								
+			}
+			
+		}
+		
+		ltp.waitNow()
+		
+		assertNotNull(body)
+		
+		assertEquals(body.message, "ok", body.status)
+		
+		String sessionID = body.sessionID
+						
+		CredentialsLogin rLogin = VitalServiceJSONMapper.fromJSON(body.object)
+						
+		assertEquals(scopedLogin, rLogin)
+						
+		
+		endpointAccessPing()
+		
 	}
 	
 	private void endpointAccessPing() {
