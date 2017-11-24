@@ -130,6 +130,7 @@ class VitalJSEndpointsManager {
 								
 								if(!authResponse.succeeded()) {
 									log.error(authResponse.cause().localizedMessage, authResponse.cause())
+									msg.reply([status: 'error_exception', message: "" + authResponse.cause().localizedMessage])
 									return
 								}
 								
@@ -182,7 +183,8 @@ class VitalJSEndpointsManager {
 							
 							
 							if(!authResponse.succeeded()) {
-								log.error(authResponse.cause())
+								log.error(authResponse.cause().localizedMessage, authResponse.cause())
+								msg.reply([status: 'error_exception', message: "" + authResponse.cause().localizedMessage])
 								return
 							}
 							
