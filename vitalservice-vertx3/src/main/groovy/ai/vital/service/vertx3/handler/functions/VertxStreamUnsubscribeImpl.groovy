@@ -29,9 +29,17 @@ class VertxStreamUnsubscribeImpl extends VertxHandler {
 			String function, Map<String, Object> params, Map<String, Object> sessionParams)
 			throws VitalServiceUnimplementedException, VitalServiceException {
 				
+		Boolean allStreams = params.get('allStreams')
+		
 		List<String> streamNames = params.get('streamNames')
 		
-		if(streamNames == null || streamNames.isEmpty()) throw new RuntimeException("No 'streamNames' param")
+		if(allStreams != null && allStreams.booleanValue()) {
+			
+		} else {
+		
+			if(streamNames == null || streamNames.isEmpty()) throw new RuntimeException("No 'streamNames' param, required when allStreams is not set")
+			
+		}
 		
 		String sessionID = getRequiredStringParam('sessionID', params)
 		
@@ -39,35 +47,48 @@ class VertxStreamUnsubscribeImpl extends VertxHandler {
 		
 		synchronized(handler.subscriptions) {
 			
+			Subscription s = null
 			
-			Subscription s = handler.subscriptions.get(sessionID)
-			
-			if(s != null) {
+			if(allStreams) {
 				
-				for(String streamName : streamNames) {
-					
-					if ( s.streamNames.remove(streamName) ) removed ++
-					
+				s = handler.subscriptions.remove(sessionID)
+				
+				if(s != null) {
+					removed = s.streamNames.size()
 				}
 				
+			} else {
+			
+				s = handler.subscriptions.get(sessionID)
 				
-				if(s.streamNames.isEmpty()) {
-					
-					handler.subscriptions.remove(sessionID)
-					
-					
-				} else {
+				if(s != null) {
 				
-					s.timestamp = System.currentTimeMillis()
-				
+					for(String streamName : streamNames) {
+						
+						if ( s.streamNames.remove(streamName) ) {
+							removed ++
+						}
+						
+					}
+					
+					
+					if(s.streamNames.isEmpty()) {
+						
+						handler.subscriptions.remove(sessionID)
+						
+					} else {
+					
+						s.timestamp = System.currentTimeMillis()
+					
+					}
+					
 				}
-				
 				
 			}
 			
 		}
 		
-		log.info("Unsubscribed sessionID: $sessionID, streams: $streamNames")
+		log.info("Unsubscribed sessionID: $sessionID, ${streamNames != null ? ('streams: ' + streamNames) : ' from all streams'}")
 		
 		ResultList rl = new ResultList()
 		rl.setTotalResults(removed);
