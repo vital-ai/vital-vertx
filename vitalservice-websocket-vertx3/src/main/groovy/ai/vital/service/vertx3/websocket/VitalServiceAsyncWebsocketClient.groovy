@@ -8,6 +8,9 @@ import io.vertx.groovy.core.http.HttpClient
 import io.vertx.groovy.core.http.WebSocket
 import io.vertx.groovy.core.http.WebSocketFrame
 
+import java.util.Map;
+import java.util.Map.Entry
+
 import org.codehaus.jackson.map.ObjectMapper
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -16,7 +19,9 @@ import ai.vital.service.vertx3.async.VitalServiceAsyncClientBase
 import ai.vital.service.vertx3.binary.ResponseMessage
 import ai.vital.vitalservice.VitalStatus
 import ai.vital.vitalservice.json.VitalServiceJSONMapper
+import ai.vital.vitalservice.query.ResultList;
 import ai.vital.vitalservice.query.VitalQuery;
+import ai.vital.vitalsigns.model.VITAL_Node
 import ai.vital.vitalsigns.model.VitalApp
 
 /**
@@ -27,6 +32,18 @@ import ai.vital.vitalsigns.model.VitalApp
  */
 class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 
+	
+	public final static String GROOVY_REGISTER_STREAM_HANDLER = 'groovy-register-stream-handler';
+	
+	public final static String GROOVY_UNREGISTER_STREAM_HANDLER = 'groovy-unregister-stream-handler';
+	
+	public final static String GROOVY_LIST_STREAM_HANDLERS = 'groovy-list-stream-handlers';
+	
+	public final static String VERTX_STREAM_SUBSCRIBE = 'vertx-stream-subscribe';
+	
+	public final static String VERTX_STREAM_UNSUBSCRIBE = 'vertx-stream-unsubscribe';
+	
+	
 	private final static Logger log = LoggerFactory.getLogger(VitalServiceAsyncWebsocketClient.class)
 	
 	String endpointURL = null
@@ -46,7 +63,16 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	Map<String, Closure> callbacksMap = [:]
 	Map<String, Long> callbacks2Timers = [:]
 	
+	
+	
 	Map<String, Closure> streamCallbacksMap = [:]
+	
+	Map<String, Closure> registeredHandlers = [:]
+	
+	Map<String, Closure> currentHandlers = [:]
+	
+	boolean eventbusListenerActive = false
+	Closure eventbusHandler = null
 	
 	ObjectMapper objectMapper = null
 	
@@ -54,7 +80,9 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	
 	long pingInterval = 5000L;
 	
-	//append this to webservice object
+	String sessionID
+	
+	//append this to webservice object (auth)
 	String appSessionID
 	
 	int reconnectCount = 5
@@ -92,6 +120,8 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 		this.reconnectCount = reconnectCount
 		this.reconnectIntervalMillis = reconnectIntervalMillis
 		objectMapper = new ObjectMapper()
+		
+		sessionID = UUID.randomUUID().toString()
 		
 	}
 	
@@ -151,6 +181,8 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 					
 					Closure callback = streamCallbacksMap.get(replyAddress)
 
+					boolean isStream = callback != null
+					
 					if(callback == null) {
 						callback = callbacksMap.remove(replyAddress)
 						Long timerID = callbacks2Timers.remove(replyAddress)
@@ -172,7 +204,11 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 					if(!body) {
 						rm.exceptionType = 'error_no_body'
 						rm.exceptionMessage = "No body in response message"
-						callback(rm)
+						if(!isStream) {
+							callback(rm)
+						} else {
+							log.error(rm.exceptionType + ' - ' + rm.exceptionMessage)
+						}
 						return
 					}
 					
@@ -195,7 +231,11 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 						if(!status.equalsIgnoreCase('ok')) {
 							rm.exceptionType = status
 							rm.exceptionMessage = msg
-							callback(rm)
+							if(!isStream) {
+								callback(rm)
+							} else {
+								log.error(rm.exceptionType + ' - ' + rm.exceptionMessage)
+							}
 							return
 						}
 						
@@ -206,15 +246,25 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 					if(responseObject == null) {
 						rm.exceptionType = 'error_no_response'
 						rm.exceptionMessage = 'No response object'
-						callback(rm)
+						if(!isStream) {
+							callback(rm)
+						} else {
+							log.error(rm.exceptionType + ' - ' + rm.exceptionMessage)
+						}
+						return
+					}
+					
+					//remove stream name!
+					String streamName = responseObject.remove('streamName')
+					
+					if(isStream && !streamName) {
+						rm.exceptionType = 'error_no_stream_name_in_stream_response'
+						rm.exceptionMessage = 'No streamName in stream response'
+						log.error(rm.exceptionType + ' - ' + rm.exceptionMessage)
 						return
 					}
 					
 					try {
-						
-						
-						//remove stream name!
-						responseObject.remove('streamName')
 						
 						Object resObj = VitalServiceJSONMapper.fromJSON(responseObject)
 						
@@ -224,11 +274,24 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 						log.error(e.localizedMessage, e)
 						rm.exceptionType = e.getClass().getCanonicalName()
 						rm.exceptionMessage = e.localizedMessage
-						callback(rm)
+						if(!isStream) {
+							callback(rm)
+						} else {
+							log.error(rm.exceptionType + ' - ' + rm.exceptionMessage)
+						}
 						return
 					}
 					
-					callback(rm)
+					if(isStream) {
+						if(!(rm.response instanceof ResultList)) {
+							log.error("Stream handler expects only result list messages")
+							return
+						}
+						callback(streamName, rm.response)
+					} else {
+						callback(rm)
+					}
+					
 						
 				} else {
 				
@@ -271,9 +334,94 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 				completeHandler = null
 			}
 			
-			if(reconnectHandler != null) {
-				reconnectHandler.handle()
+			
+			
+			if(currentHandlers.size() > 0) {
+			
+				List keys = new ArrayList(currentHandlers.keySet())
+				log.info("Re-subscribing ${keys.size()} stream handlers: ${keys}")
+				
+				callFunctionSuper(VERTX_STREAM_SUBSCRIBE, [streamNames: keys, sessionID: this.sessionID]) { ResponseMessage res ->
+					
+					if(res.exceptionType) {
+						log.error("Error when re-subscribing to streams: " + res.exceptionType + ' - ' + res.exceptionMessage)
+						return
+					}
+					
+					ResultList resRL = res.response
+					if(resRL.status.status != VitalStatus.Status.ok) {
+						log.error("Error when re-subscribing to streams: " + resRL.status.message)
+						return
+					}
+					
+					if( true /*! this.eventbusListenerActive */) {
+						
+						log.info("Also refreshing inactive eventbus listener")
+						
+						this.eventbusHandler = createNewHandler();
+		//				_this.eb.registerHandler('stream.'+ _this.sessionID, _this.eventbusHandler);
+						String address = 'stream.'+ this.sessionID
+						this.webSocket.writeFinalTextFrame(JsonOutput.toJson([
+							type: 'register',
+							address: address,
+							headers: [:]
+						]))
+						
+						
+						streamCallbacksMap.put(address, this.eventbusHandler)
+						
+						this.eventbusListenerActive = true
+						
+					}
+					
+					if(reconnectHandler != null) {
+						reconnectHandler.handle()
+					}
+					
+				}
+				
+			} else {
+			
+				if(reconnectHandler != null) {
+					reconnectHandler.handle()
+				}
+			
 			}
+			
+			/*
+			var currentKeys = [];
+			
+			for ( var key in _this.currentHandlers ) {
+				currentKeys.push(key);
+			}
+			
+			if(currentKeys.length > 0) {
+				
+				if(VITAL_LOGGING) { console.log('refreshing session handlers: ', currentKeys); }
+				
+				var args = [VitalServiceWebsocketImpl.VERTX_STREAM_SUBSCRIBE, {streamNames: currentKeys, sessionID: _this.sessionID}];
+				if(_this.admin) {
+					//insert null app
+					args.splice(0, 0, null);
+				}
+				//re-register it ?
+				_this.callMethod('callFunction', args, function(successRL){
+					
+					if(!_this.eventbusListenerActive) {
+						
+						_this.eventbusHandler = _this.createNewHandler();
+						_this.eb.registerHandler('stream.'+ _this.sessionID, _this.eventbusHandler);
+						_this.eventbusListenerActive = true;
+						
+					}
+					
+					
+				}, function(errorResponse){
+					console.error(errorResponse);
+				});
+					
+			}
+			*/
 			
 		}, {Throwable t ->
 
@@ -487,4 +635,298 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 	public void query(String queryString, Closure closure) {
 		impl(closure, 'query', [queryString])
 	}
+
+	private void callFunctionSuper(String function, Map<String, Object> arguments, Closure closure) {
+		super.callFunction(function, arguments, closure)
+	}
+	
+	@Override
+	public void callFunction(String function, Map<String, Object> arguments, Closure closure) {
+
+		if(function == GROOVY_LIST_STREAM_HANDLERS) {
+			this.listStreamHandlers(arguments, closure)
+			return
+		} else if(function == GROOVY_REGISTER_STREAM_HANDLER) {
+			this.registerStreamHandler(arguments, closure)
+			return
+		} else if(function == GROOVY_UNREGISTER_STREAM_HANDLER) {
+			this.unregisterStreamHandler(arguments, closure);
+			return
+		} else if(function == VERTX_STREAM_SUBSCRIBE) {
+			this.streamSubscribe(arguments, closure)
+			return
+		} else if(function == VERTX_STREAM_UNSUBSCRIBE) {
+			this.streamUnsubscribe(arguments, closure)
+			return
+		}
+		
+		super.callFunction(function, arguments, closure)
+		
+	}
+	
+	private void listStreamHandlers(Map<String, Object> params, Closure closure) {
+		
+		ResultList rl = new ResultList()
+		
+		for(Entry<String, Closure> entry : this.registeredHandlers.entrySet()) {
+			
+			String key = entry.getKey()
+			
+			VITAL_Node g = new VITAL_Node()
+			g.URI = 'handler:' + key
+			g.active = this.currentHandlers.containsKey(key)
+			g.name = key
+
+			rl.addResult(g)
+			
+		}
+
+		ResponseMessage rm = new ResponseMessage()
+		rm.response = rl
+		
+		closure(rl) 		
+		
+	}
+	
+	private ResponseMessage errorResponseMessage(Closure closure, String exceptionType, String exceptionMessage) {
+		ResponseMessage rm = new ResponseMessage()
+		rm.exceptionType = exceptionType
+		rm.exceptionMessage = exceptionMessage
+		return rm
+	}
+	
+	private void registerStreamHandler(Map<String, Object> arguments, Closure closure) {
+		
+		def streamName = arguments.streamName;
+		if(streamName == null) {
+			errorResponseMessage(closure, 'error_missing_param_stream_name', "No 'streamName' param")
+			return
+		}
+		
+		if(!(streamName instanceof String)) {
+			errorResponseMessage(closure, 'error_stream_name_param_type', "streamName param must be a string: " + streamName.getClass().getCanonicalName())
+			return
+		}
+		
+		def handlerFunction = arguments.handlerFunction;
+		
+		if(handlerFunction == null) {
+			errorResponseMessage(closure, 'error_missing_param_handler_function', "No 'handlerFunction' param");
+			return;
+		}
+		
+		if(!(handlerFunction instanceof Closure)) {
+			errorResponseMessage(closure, 'error_handler_function_param_type', "handlerFunction param must be a closure: " + handlerFunction.getClass().getCanonicalName())
+			return
+		}
+		
+		
+		if( this.registeredHandlers.containsKey(streamName) ) {
+			errorResponseMessage(closure, 'error_stream_handler_already_registered', "Handler for stream " + streamName + " already registered.");
+			return;
+		}
+		
+		this.registeredHandlers.put(streamName, handlerFunction)
+//		
+		ResultList rl = new ResultList()
+		rl.status = VitalStatus.withOKMessage('Handler for stream ' + streamName + ' registered successfully')
+
+		ResponseMessage rm = new ResponseMessage()
+		rm.response = rl
+		closure(rm)
+		
+	}
+	
+	private void unregisterStreamHandler(Map<String, Object> arguments, Closure closure) {
+		
+		def streamName = arguments.streamName;
+		if(streamName == null) {
+			errorResponseMessage(closure, 'error_missing_param_stream_name', "No 'streamName' param")
+			return
+		}
+		
+		if(!(streamName instanceof String)) {
+			errorResponseMessage(closure, 'error_stream_name_param_type', "streamName param must be a string: " + streamName.getClass().getCanonicalName())
+			return
+		}
+		
+		Closure currentHandler = this.registeredHandlers.get(streamName)
+		
+		if(currentHandler == null) {
+			errorResponseMessage(closure, 'error_stream_handler_not_registered', "No handler for stream " + streamName + " registered")
+			return;
+		}
+		
+		if(this.currentHandlers.containsKey(streamName)) {
+			errorResponseMessage(closure, 'error_handler_in_use', "Handler in use " + streamName)
+			return
+		}
+		
+		registeredHandlers.remove(streamName)
+		
+		ResultList rl = new ResultList()
+		rl.status = VitalStatus.withOKMessage('Handler for stream ' + streamName + ' unregistered successfully')
+
+		ResponseMessage rm = new ResponseMessage()
+		rm.response = rl
+		closure(rm)
+		
+	}
+	
+	private void streamSubscribe(Map<String, Object> arguments, Closure closure) {
+		
+		//first check if we are able to
+		def streamName = arguments.streamName
+		if(streamName == null) {
+			errorResponseMessage(closure, 'error_missing_param_stream_name', "No 'streamName' param")
+			return
+		}
+		
+		if(!(streamName instanceof String)) {
+			errorResponseMessage(closure, 'error_stream_name_param_type', "streamName param must be a string: " + streamName.getClass().getCanonicalName())
+			return
+		}
+
+		Closure currentHandler = this.registeredHandlers.get(streamName)
+		
+		if(currentHandler == null) {
+			errorResponseMessage(closure, 'error_stream_handler_not_registered', "No handler for stream " + streamName + " registered")
+			return;
+		}
+		
+		Closure activeHandler = this.currentHandlers.get(streamName)
+		
+		if(activeHandler != null) {
+			errorResponseMessage(closure, 'error_stream_handler_already_subscribed', "Handler for stream " + streamName + " already subscribed")
+			return;
+		}
+		
+		
+		super.callFunction(VERTX_STREAM_SUBSCRIBE, [streamNames: [streamName], sessionID: this.sessionID]) { ResponseMessage res ->
+			
+			if(res.exceptionType) {
+				closure(res)
+				return
+			}
+			
+			ResultList resRL = res.response
+			if(resRL.status.status != VitalStatus.Status.ok) {
+				closure(res)
+				return
+			}
+			
+
+			if(! this.eventbusListenerActive ) {
+				
+				this.eventbusHandler = createNewHandler();
+//				_this.eb.registerHandler('stream.'+ _this.sessionID, _this.eventbusHandler);
+				String address = 'stream.'+ this.sessionID
+				this.webSocket.writeFinalTextFrame(JsonOutput.toJson([
+					type: 'register',
+					address: address,
+					headers: [:]
+				]))
+				
+				
+				streamCallbacksMap.put(address, this.eventbusHandler)
+				
+				this.eventbusListenerActive = true
+			}
+			
+			this.currentHandlers.put(streamName, currentHandler)
+			
+			ResultList rl = new ResultList()
+			rl.status = VitalStatus.withOKMessage('Successfully subscribed to stream ' + streamName)
+
+			ResponseMessage rm = new ResponseMessage()
+			rm.response = rl
+			closure(rm)
+			
+		}
+		
+	}
+
+	private Closure createNewHandler() {
+
+		Closure wrapperHandler = { String streamName, ResultList rl ->
+
+			Closure handler = this.currentHandlers.get(streamName)
+			
+			if(handler == null) {
+				log.warn("Received a message for non-existing stream handler: " + streamName)
+				return
+				
+			}			
+			
+			handler(rl)
+			
+		};
+		
+		return wrapperHandler;
+		
+	}
+		
+	private void streamUnsubscribe(Map<String, Object> arguments, Closure closure) {
+		
+		def streamName = arguments.streamName
+		if(streamName == null) {
+			errorResponseMessage(closure, 'error_missing_param_stream_name', "No 'streamName' param")
+			return
+		}
+		
+		if(!(streamName instanceof String)) {
+			errorResponseMessage(closure, 'error_stream_name_param_type', "streamName param must be a string: " + streamName.getClass().getCanonicalName())
+			return
+		}
+		
+		Closure activeHandler = this.currentHandlers.get(streamName)
+		
+		if( activeHandler == null ) {
+			errorResponseMessage(closure, 'error_no_subscribed_stream_handlers', "No handler subscribed to stream " + streamName);
+			return;
+		}
+		
+		super.callFunction(VERTX_STREAM_UNSUBSCRIBE, [streamNames: [streamName], sessionID: this.sessionID]) { ResponseMessage res ->
+			
+			if(res.exceptionType) {
+				closure(res)
+				return
+			}
+			
+			ResultList resRL = res.response
+			if(resRL.status.status != VitalStatus.Status.ok) {
+				closure(res)
+				return
+			}
+			
+			this.currentHandlers.remove(streamName)
+			
+			if(this.currentHandlers.size() < 1) {
+
+				this.streamCallbacksMap.clear()
+				
+//				_this.eb.unregisterHandler('stream.'+ _this.sessionID, _this.eventbusHandler);
+				String address = 'stream.'+ this.sessionID
+				this.webSocket.writeFinalTextFrame(JsonOutput.toJson([
+					type: 'unregister',
+					address: address,
+					headers: [:]
+				]))
+				
+				this.eventbusListenerActive = false;
+				
+			}
+			
+			
+			ResultList rl = new ResultList()
+			rl.status = VitalStatus.withOKMessage('Successfully unsubscribed from stream ' + streamName)
+
+			ResponseMessage rm = new ResponseMessage()
+			rm.response = rl
+			closure(rm)
+			
+		}
+		
+	}	
+	
 }
