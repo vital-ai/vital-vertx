@@ -489,7 +489,10 @@ class VitalServiceAsyncWebsocketClient extends VitalServiceAsyncClientBase {
 		
 		url = new URL(endpointURL)
 		
-		Map opts = [ ssl: url.getProtocol().equalsIgnoreCase('https') ]
+		Map opts = [ 
+			ssl: url.getProtocol().equalsIgnoreCase('https'), 
+			maxWebsocketFrameSize: 1000000
+		]
 		
 		httpClient = vertx.createHttpClient(opts)
 
