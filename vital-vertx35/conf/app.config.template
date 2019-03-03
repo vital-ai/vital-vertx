@@ -1,0 +1,123 @@
+name: "vertx3-classloader"
+
+syncDomains: false
+
+#required when syncDomains: true
+syncDomainsIntervalSeconds:  3600
+
+#required when syncDomains: true
+mergedJsonSchemaFileLocation: "merged.js"
+
+
+#verticles list
+#0 intances means num of cpu cores
+verticles: [
+
+  {
+    name: "groovy:ai.vital.service.vertx3.VitalServiceVertx3"
+    worker: true
+    #if not set the number of cpus
+    #instances: 1
+    reloadable: false
+  },
+  
+  {
+    name: "groovy:ai.vital.auth.vertx3.VitalAuthManager"
+    worker: false
+    #if not set the number of cpus
+    #instances: 1
+    reloadable: false
+  },
+
+  {
+    name: "groovy:verticle1"
+    worker: false
+    instances: 1
+    reloadable: true
+  },
+  
+  {
+    name: "groovy:verticle2
+    worker: false
+    #if not set the number of cpus
+    #instances: 1
+    reloadable: true
+  }
+
+]
+
+
+#required when vitalservice-vertx3 is in use
+vitalservice {
+
+  services: [{
+  
+    profile: prime
+    
+    key: serv-serv-serv
+    
+  }]
+
+}
+
+#required when vital-auth-vertx3 is in use
+vitalauth {
+
+  apps: {
+  
+    vertx-app-sample: {
+
+      access: service
+
+      #this is only for allow/deny rules
+      auth_enabled: true
+      
+      mockedLogin: true
+      
+      persistentSessions: false
+      
+      expirationProlongMargin: 60000
+      
+
+      filter: [
+        {
+          #AUTH functions need to be available
+          type: allow
+          method: callFunction
+          function: "vitalauth\\..*"
+        },
+        {
+          #access to query is restricted for logged in users only
+          type: auth
+          method: get
+        },
+        {
+          #access to query is restricted for logged in users only
+          type: auth
+          method: query
+        },
+        {
+          #no other serviceapi methods allowed
+          type: deny
+          method: ".*" 
+        }
+      ]
+      
+    }
+    
+  }
+
+}
+
+
+//this is some custom config
+webserver {
+
+  host: 0.0.0.0
+  
+  port: 90
+
+}
+
+
+app: vertx-app-sample

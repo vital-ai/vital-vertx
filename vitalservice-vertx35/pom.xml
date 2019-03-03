@@ -2,7 +2,7 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>vital-ai</groupId>
-	<artifactId>vitalservice-websocket-vertx35</artifactId>
+	<artifactId>vitalservice-vertx35</artifactId>
 	<version>0.2.304</version>
 
   	<properties>
@@ -108,15 +108,28 @@
 
 	<dependencies>
 
-		<!-- vital service -->
-
 		<dependency>
 			<groupId>vital-ai</groupId>
 			<artifactId>vitalservice-base-vertx35</artifactId>
 			<version>${vital.version}</version>
 		</dependency>
+	
+		<!-- vital service -->
+
+		<dependency>
+			<groupId>vital-ai</groupId>
+			<artifactId>vitalservice</artifactId>
+			<version>${vital.version}</version>
+		</dependency>
 
 		<!-- tests -->
+		<dependency>
+			<groupId>vital-ai</groupId>
+			<artifactId>vital-lucene</artifactId>
+			<version>${vital.version}</version>
+			<scope>test</scope>
+		</dependency>
+		
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>

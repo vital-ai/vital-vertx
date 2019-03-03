@@ -6,8 +6,9 @@
 	<version>0.2.304</version>
 
   	<properties>
-		<vertx.version>3.5.1</vertx.version>
+		<vertx.version>3.6.3</vertx.version>
     	<vital.version>0.2.304</vital.version>
+    	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   	</properties>
 
 	<repositories>
