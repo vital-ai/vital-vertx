@@ -1,0 +1,45 @@
+
+  apps: {
+  
+    app1: {
+    
+      #depending on the access type the proper segment is necessary, service/admin/superadmin
+      access: service
+    
+      loginsSegment: logins
+      
+      persistentSessions: true
+      
+      maxSessionsPerUser: 3
+      
+      expirationProlongMargin: 10000
+      
+      session_timeout: 1800000
+      
+                  
+      mockedLogin: false
+      
+    }
+    
+    
+    app2: {
+    
+      access: admin
+    
+      adminLoginsSegment: adminlogins
+      
+      persistentSessions: true
+      
+      maxSessionsPerUser: 3
+      
+      expirationProlongMargin: 10000
+    
+      session_timeout: 1800000
+      
+      mockedLogin: false
+      
+    }
+  
+  }
+  
+}

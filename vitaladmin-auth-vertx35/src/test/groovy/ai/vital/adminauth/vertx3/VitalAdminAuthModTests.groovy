@@ -1,0 +1,293 @@
+package ai.vital.adminauth.vertx3
+
+import org.apache.commons.io.FileUtils;
+import org.githubusercontent.defuse.passwordhash.PasswordHash;
+
+import ai.vital.adminauth.vertx3.VitalAdminAuthManager;
+import ai.vital.domain.AdminLogin;
+import ai.vital.domain.CredentialsLogin;
+import ai.vital.lucene.disk.service.config.VitalServiceLuceneDiskConfig;
+import ai.vital.mock.service.VitalServiceMock
+import ai.vital.service.admin.vertx3.VitalServiceAdminVertx3;
+import ai.vital.vitalservice.VitalService;
+import ai.vital.vitalservice.admin.VitalServiceAdmin;
+import ai.vital.vitalservice.factory.VitalServiceFactory;
+import ai.vital.vitalservice.json.VitalServiceJSONMapper;
+import ai.vital.vitalsigns.model.VitalApp
+import ai.vital.vitalsigns.model.VitalSegment;
+import ai.vital.vitalsigns.model.VitalServiceAdminKey;
+import ai.vital.vitalsigns.model.VitalServiceKey;
+import ai.vital.vitalsigns.model.VitalServiceRootKey;
+import io.vertx.core.AsyncResult
+import io.vertx.core.Future
+import io.vertx.core.json.JsonObject
+import io.vertx.core.eventbus.Message
+import junit.framework.TestCase;
+
+class VitalAdminAuthModTests extends AbstractVitalServiceAdminVertxTest {
+
+	private File luceneRoot
+	
+	protected AdminLogin login
+	
+	VitalApp app = VitalApp.withId("app")
+	
+	@Override
+	protected void setUp() throws Exception {
+		
+		
+		//init the service here to avoid
+		VitalServiceLuceneDiskConfig cfg = new VitalServiceLuceneDiskConfig()
+		VitalServiceRootKey rootKey = new VitalServiceRootKey().generateURI((VitalApp) null)
+		cfg.app = app 
+		
+		VitalServiceAdminKey adminKey = new VitalServiceAdminKey().generateURI((VitalApp) null)
+		adminKey.key = "admi-admi-admi"
+		
+		VitalServiceKey serviceKey = new VitalServiceKey().generateURI((VitalApp) null)
+		serviceKey.key = "serv-serv-serv"
+		
+		
+		luceneRoot = File.createTempDir("vitalauth", "lucenedisk")
+		
+		cfg.rootPath = luceneRoot.absolutePath
+		
+		rootKey.key = 'root-root-root'
+		VitalServiceFactory.initService(cfg, rootKey, null) 
+		
+		VitalServiceAdmin adminService = VitalServiceFactory.openAdminService(adminKey, cfg, VitalServiceAdminVertx3.SERVICE_NAME)
+		
+		
+		adminService.addApp(app)
+		
+		VitalSegment loginsSegment = VitalSegment.withId("logins")
+		
+		VitalSegment sessionsSegment = VitalSegment.withId("sessions")
+		
+		adminService.addSegment(app, loginsSegment, true)
+		
+		adminService.addSegment(app, sessionsSegment, true)
+		
+		login = new AdminLogin().generateURI(app)
+		login.username = "test"
+		login.password = PasswordHash.createHash("pass")
+		login.active = true
+		login.emailVerified = true
+		
+		
+		adminService.save(app, loginsSegment, login, true)
+		
+		
+		super.setUp();
+		
+		//once service mod is up setup the auth mod
+		
+		Map modCfgMap = [
+			
+			apps: [
+				"${app.appID.toString()}": [
+					auth_enabled: true,
+					access: 'admin',
+					adminLoginsSegment: loginsSegment.segmentID.toString(),
+					sessionsSegment: sessionsSegment.segmentID.toString(),
+					persistentSessions: true,
+					maxSessionsPerUser: 3,
+					expirationProlongMargin: 10000,
+					filter: [
+						[ type: 'allow', method: 'ping' ],
+						[ type: 'allow', method: 'callFunction', function: 'vitalauth\\..*' ],
+						[ type: 'auth', method: 'listSegments' ],
+						[ type: 'deny', method: '.*']
+					]
+				]
+			]
+			
+		]
+		
+		JsonObject modCfg = new JsonObject(modCfgMap)
+		
+		ltp.delayed { ->
+		
+			ltp.vertx.deployVerticle("groovy:" + VitalAdminAuthManager.class.canonicalName, [instances: 1, worker: false, config: modCfg]) { AsyncResult<String> asyncResult ->
+				
+				if (asyncResult.succeeded()) {
+					println("Vital Admin Auth Mod deployment ID is " + asyncResult.result());
+				} else {
+					ltp.ex = asyncResult.cause()
+					ltp.ex.printStackTrace()
+				}
+				
+				ltp.resume()
+					
+			}
+		}
+	
+		ltp.waitNow()
+		
+		if(ltp.ex) {
+			ltp.ex.printStackTrace()
+			fail("failed to launch vitaladmin-auth mod: " + ltp.ex.localizedMessage + " ")
+		}
+		
+	}
+	
+	@Override
+	protected void tearDown() throws Exception {
+		FileUtils.deleteQuietly(luceneRoot)
+		super.tearDown();
+	}
+	
+	public void testAuthFlow() {
+		
+		doTestAuthFlow1()
+		
+	}
+	
+	private void doTestAuthFlow1() {
+		
+		Map body = null
+		
+		ltp.delayed { ->
+			
+			ltp.vertx.eventBus().send(VitalAdminAuthManager.admin_address_login, [appID: app.appID.toString(), type: AdminLogin.class.simpleName, username: 'test', password: 'pass']) { Future<Message> response ->
+				
+				if(response.succeeded()) {
+					body = response.result().body()
+				} else {
+					System.err.println( response.cause() )
+				}
+				
+				ltp.resume()
+				
+			}
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(body.message, "ok", body.status)
+		
+		String sessionID = body.sessionID
+						
+		CredentialsLogin rLogin = VitalServiceJSONMapper.fromJSON(body.object)
+						
+		assertEquals(login, rLogin)
+						
+		doTestAuthFlow2(sessionID);
+		
+		
+	}
+	
+	private doTestAuthFlow2(String sessionID) {
+		
+		Map body = null
+		
+		ltp.delayed {
+			
+			ltp.vertx.eventBus().send(VitalAdminAuthManager.admin_address_authorise, [appID: app.appID.toString(), sessionID: sessionID]) { Future<Message> response ->
+
+				if(response.succeeded()) {
+					body = response.result().body()
+				} else {
+					System.err.println( response.cause() )
+				}
+				
+				ltp.resume()
+				
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+
+		assertEquals("ok", body.status)
+		
+		assertEquals(sessionID, body.sessionID)
+		
+		CredentialsLogin rLogin = VitalServiceJSONMapper.fromJSON(body.object)
+				
+		doTestAuthFlow3(sessionID)
+		
+	}
+	
+	private doTestAuthFlow3(String sessionID) {
+
+		Map body = null
+				
+		ltp.delayed { ->
+			
+			ltp.vertx.eventBus().send(VitalAdminAuthManager.admin_address_logout, [appID: app.appID.toString(), type: AdminLogin.class.simpleName, sessionID: sessionID]) { Future<Message> response ->
+				
+				if(response.succeeded()) {
+					body = response.result().body()
+				} else {
+					System.err.println( response.cause() )
+				}
+				
+				ltp.resume()
+					
+								
+			}
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals("ok", body.status )
+		
+		doTestAuthFlow4();
+		
+	}
+	
+	private doTestAuthFlow4() {
+		
+		Map body = null
+		
+		ltp.delayed { ->
+			
+			ltp.vertx.eventBus().send(VitalAdminAuthManager.admin_address_login, [appID: app.appID.toString(), type: AdminLogin.class.simpleName, username: 'test', password: 'passwrong']) { Future<Message> response ->
+				
+				if(response.succeeded()) {
+					body = response.result().body()
+				} else {
+					System.err.println( response.cause() )
+				}
+				
+				ltp.resume()
+					
+								
+			}
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(VitalAdminAuthManager.error_invalid_password, body.status)
+		
+		doTestAuthFlow5();
+	}
+	
+	private doTestAuthFlow5() {
+		
+		Map body = null
+
+		ltp.delayed {
+			
+			ltp.vertx.eventBus().send(VitalAdminAuthManager.admin_address_authorise, [appID: app.appID.toString(), sessionID: 'Login_111']) { Future<Message> response ->
+
+				if(response.succeeded()) {
+					body = response.result().body()
+				} else {
+					System.err.println( response.cause() )
+				}
+				
+				ltp.resume()
+				
+			}
+			
+		}
+		
+		ltp.waitNow()
+		
+		assertEquals(VitalAdminAuthManager.error_denied, body.status)
+		
+	}
+}
